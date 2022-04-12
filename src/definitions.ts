@@ -50,6 +50,12 @@ export interface CapacitorSQLitePlugin {
   changeEncryptionSecret(options: capChangeSecretOptions): Promise<void>;
 
   /**
+   * Validate (match) the given secret with the stored secret.
+   * @param options capVerifySecretOptions
+   */
+  validateEncryptionSecret(options: capValidateSecretOptions): Promise<boolean>;
+
+  /**
    * create a database connection
    * @param options capConnectionOptions
    * @return Promise<void>
@@ -310,6 +316,12 @@ export interface capChangeSecretOptions {
    * The old passphrase for Encrypted Databases
    */
   oldpassphrase?: string;
+}
+export interface capValidateSecretOptions {
+  /**
+   * The passphrase for Encrypted Databases
+   */
+  passphrase?: string;
 }
 export interface capEchoOptions {
   /**

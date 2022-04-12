@@ -159,6 +159,29 @@ enum CapacitorSQLiteError: Error {
         }
     }
 
+   // MARK: - ValidateEncryptionSecret
+
+    @objc public func validateEncryptionSecret(passphrase: String) throws {
+        if isInit {
+            if isEncryption {
+                do {
+                    // verify encryption secret
+                    return UtilsSecret
+                        .validatePassphrase(account: account,
+                                             passphrase: passphrase)
+                } catch UtilsSecretError.validateEncryptionSecret(let message) {
+                    throw CapacitorSQLiteError.failed(message: message)
+                } catch let error {
+                    throw CapacitorSQLiteError.failed(message: "\(error)")
+                }
+            } else {
+                throw CapacitorSQLiteError.failed(message: "No Encryption set in capacitor.config")
+            }
+        } else {
+            throw CapacitorSQLiteError.failed(message: initMessage)
+        }
+    }
+
     // MARK: - ChangeEncryptionSecret
 
     // swiftlint:disable function_body_length

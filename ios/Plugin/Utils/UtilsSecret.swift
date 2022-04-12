@@ -13,7 +13,8 @@ enum UtilsSecretError: Error {
     case setPassphrase(message: String)
     case changePassphrase(message: String)
     case setEncryptionSecret(message: String)
-    case  changeEncryptionSecret(message: String)
+    case changeEncryptionSecret(message: String)
+    case validateEncryptionSecret(message: String)
 }
 
 let oldAccount: String = "CapacitorSQLitePlugin"

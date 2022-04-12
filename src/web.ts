@@ -29,7 +29,7 @@ import type {
   capNCConnectionOptions,
   capNCOptions,
   capNCDatabasePathResult,
-  capSQLiteUrl,
+  capSQLiteUrl, capVerifySecretOptions,
 } from './definitions';
 
 export class CapacitorSQLiteWeb
@@ -95,6 +95,10 @@ export class CapacitorSQLiteWeb
   }
   async changeEncryptionSecret(options: capChangeSecretOptions): Promise<void> {
     console.log('changeEncryptionSecret', options);
+    throw this.unimplemented('Not implemented on web.');
+  }
+  async verifyEncryptionSecret(options: capVerifySecretOptions): Promise<boolean> {
+    console.log('verifyEncryptionSecret', options);
     throw this.unimplemented('Not implemented on web.');
   }
   async getNCDatabasePath(

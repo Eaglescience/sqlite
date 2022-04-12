@@ -208,6 +208,24 @@ public class CapacitorSQLite {
     }
 
     /**
+     * ValidateEncryptionSecret
+     * @param passphrase
+     * @throws Exception
+     */
+    public boolean validateEncryptionSecret(String passphrase) throws Exception {
+        if (isEncryption) {
+            try {
+                // set encryption secret
+                return uSecret.getPassphrase().equals(passphrase)
+            } catch (Exception e) {
+                throw new Exception(e.getMessage());
+            }
+        } else {
+            throw new Exception("No Encryption set in capacitor.config");
+        }
+    }
+
+    /**
      * ChangeEncryptionSecret
      * @param passphrase
      * @param oldPassphrase

@@ -130,6 +130,37 @@ public class CapacitorSQLitePlugin extends Plugin {
     }
 
     /**
+     * ValidateEncryptionSecret
+     * validate a passphrase secret for a database
+     *
+     * @param call
+     */
+    @PluginMethod
+    public void validateEncryptionSecret(PluginCall call) {
+        String passphrase = null;
+        if (!call.getData().has("passphrase")) {
+            String msg = "validateEncryptionSecret: Must provide a passphrase";
+            rHandler.retResult(call, null, msg);
+            return;
+        }
+        passphrase = call.getString("passphrase");
+        if (implementation != null) {
+            try {
+                boolean result = implementation.validateEncryptionSecret(passphrase);
+                rHandler.retResult(call, result, null);
+                return;
+            } catch (Exception e) {
+                String msg = "validateEncryptionSecret: " + e.getMessage();
+                rHandler.retResult(call, null, msg);
+                return;
+            }
+        } else {
+            rHandler.retResult(call, null, loadMessage);
+            return;
+        }
+    }
+
+    /**
      * ChangeEncryptionSecret
      * change a passphrase secret for a database
      * with a new passphrase

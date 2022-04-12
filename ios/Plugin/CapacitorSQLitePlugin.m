@@ -41,4 +41,5 @@ CAP_PLUGIN(CapacitorSQLitePlugin, "CapacitorSQLite",
            CAP_PLUGIN_METHOD(isSecretStored, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(setEncryptionSecret, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(changeEncryptionSecret, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(validateEncryptionSecret, CAPPluginReturnPromise);
 )

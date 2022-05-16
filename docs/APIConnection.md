@@ -12,6 +12,7 @@
 * [`saveToStore(...)`](#savetostore)
 * [`echo(...)`](#echo)
 * [`isSecretStored()`](#issecretstored)
+* [`resetPassphrase()`](#resetpassphrase)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
 * [`changeEncryptionSecret(...)`](#changeencryptionsecret)
 * [`addUpgradeStatement(...)`](#addupgradestatement)
@@ -105,6 +106,19 @@ isSecretStored() => Promise<capSQLiteResult>
 Check if a secret is stored
 
 **Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
+
+**Since:** 3.0.0-beta.13
+
+--------------------
+
+
+### resetPassphrase()
+
+```typescript
+resetPassphrase() => Promise<void>
+```
+
+Reset passphrase with empty string
 
 **Since:** 3.0.0-beta.13
 

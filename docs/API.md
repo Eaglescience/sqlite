@@ -116,13 +116,14 @@ The plugin add a suffix "SQLite" and an extension ".db" to the database name giv
 * [`initWebStore()`](#initwebstore)
 * [`saveToStore(...)`](#savetostore)
 * [`isSecretStored()`](#issecretstored)
+* [`resetPassphrase()`](#resetpassphrase)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
 * [`changeEncryptionSecret(...)`](#changeencryptionsecret)
 * [`validateEncryptionSecret(...)`](#validateencryptionsecret)
 * [`createConnection(...)`](#createconnection)
 * [`closeConnection(...)`](#closeconnection)
 * [`echo(...)`](#echo)
-* [`initialize()`](#initialize)
+* [`initialize(...)`](#initialize)
 * [`open(...)`](#open)
 * [`close(...)`](#close)
 * [`getUrl(...)`](#geturl)
@@ -205,6 +206,19 @@ isSecretStored() => Promise<capSQLiteResult>
 Check if a passphrase exists in a secure store
 
 **Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
+
+**Since:** 3.0.0-beta.13
+
+--------------------
+
+
+### resetPassphrase()
+
+```typescript
+resetPassphrase() => Promise<void>
+```
+
+Reset passphrase with empty string
 
 **Since:** 3.0.0-beta.13
 
@@ -319,13 +333,17 @@ Echo a given string
 --------------------
 
 
-### initialize()
+### initialize(...)
 
 ```typescript
-initialize() => Promise<void>
+initialize(options: capInitializeOptions) => Promise<void>
 ```
 
 Initialize biometric authentication
+
+| Param         | Type                                                                  |
+| ------------- | --------------------------------------------------------------------- |
+| **`options`** | <code><a href="#capinitializeoptions">capInitializeOptions</a></code> |
 
 **Since:** 0.0.1
 
@@ -960,6 +978,14 @@ Check if a non conformed database exists without connection
 | Prop        | Type                | Description         |
 | ----------- | ------------------- | ------------------- |
 | **`value`** | <code>string</code> | String to be echoed |
+
+
+#### capInitializeOptions
+
+| Prop                    | Type                | Description                           |
+| ----------------------- | ------------------- | ------------------------------------- |
+| **`biometricTitle`**    | <code>string</code> | Title and subtitle for biometric auth |
+| **`biometricSubtitle`** | <code>string</code> |                                       |
 
 
 #### capSQLiteUrl

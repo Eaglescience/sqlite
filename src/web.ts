@@ -39,6 +39,7 @@ export class CapacitorSQLiteWeb
   private isStoreOpen = false;
 
   initialize(options: capInitializeOptions): Promise<void> {
+    console.log('Initialize', options);
     return Promise.reject('no intialize in web')
   }
 

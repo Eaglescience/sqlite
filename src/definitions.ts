@@ -53,7 +53,7 @@ export interface CapacitorSQLitePlugin {
    * Validate (match) the given secret with the stored secret.
    * @param options capVerifySecretOptions
    */
-  validateEncryptionSecret(options: capValidateSecretOptions): Promise<boolean>;
+  validateEncryptionSecret(options: capValidateSecretOptions): Promise<capSQLiteResult>;
 
   /**
    * create a database connection
@@ -84,6 +84,7 @@ export interface CapacitorSQLitePlugin {
    * @since 0.0.1
    */
   initialize(): Promise<void>;
+
   /**
    * Open a SQLite database
    * @param options: capSQLiteOptions
@@ -1038,7 +1039,7 @@ export class SQLiteConnection implements ISQLiteConnection {
     }
   }
 
-  async validateEncryptionSecret(passphrase: string): Promise<boolean> {
+  async validateEncryptionSecret(passphrase: string): Promise<capSQLiteResult> {
     try {
       const result = await this.sqlite.validateEncryptionSecret({ passphrase: passphrase });
       return Promise.resolve(result);

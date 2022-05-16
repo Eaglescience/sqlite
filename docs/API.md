@@ -252,7 +252,7 @@ in secure store
 ### validateEncryptionSecret(...)
 
 ```typescript
-validateEncryptionSecret(options: capValidateSecretOptions) => Promise<boolean>
+validateEncryptionSecret(options: capValidateSecretOptions) => Promise<capSQLiteResult>
 ```
 
 Validate (match) the given secret with the stored secret.
@@ -261,7 +261,7 @@ Validate (match) the given secret with the stored secret.
 | ------------- | ----------------------------------------------------------------------------- | ---------------------- |
 | **`options`** | <code><a href="#capvalidatesecretoptions">capValidateSecretOptions</a></code> | capVerifySecretOptions |
 
-**Returns:** <code>Promise&lt;boolean&gt;</code>
+**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 
 --------------------
 

@@ -106,7 +106,7 @@ public class CapacitorSQLite {
         }
     }
 
-    public void initialize() {
+    public void initialize() throws Exception {
         try {
             if (isEncryption) {
                 // create or retrieve masterkey from Android keystore

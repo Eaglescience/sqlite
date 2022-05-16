@@ -47,6 +47,11 @@ export class CapacitorSQLite implements CapacitorSQLitePlugin {
   private _uFile: UtilsFile = new UtilsFile();
   private _uJson: UtilsJson = new UtilsJson();
 
+  initialize(): Promise<void> {
+    return Promise.reject('Not implemented');
+  }
+
+
   async initWebStore(): Promise<void> {
     return Promise.reject('Method not implemented.');
   }

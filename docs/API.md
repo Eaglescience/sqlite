@@ -122,6 +122,7 @@ The plugin add a suffix "SQLite" and an extension ".db" to the database name giv
 * [`createConnection(...)`](#createconnection)
 * [`closeConnection(...)`](#closeconnection)
 * [`echo(...)`](#echo)
+* [`initialize()`](#initialize)
 * [`open(...)`](#open)
 * [`close(...)`](#close)
 * [`getUrl(...)`](#geturl)
@@ -312,6 +313,19 @@ Echo a given string
 | **`options`** | <code><a href="#capechooptions">capEchoOptions</a></code> | : <a href="#capechooptions">capEchoOptions</a> |
 
 **Returns:** <code>Promise&lt;<a href="#capechoresult">capEchoResult</a>&gt;</code>
+
+**Since:** 0.0.1
+
+--------------------
+
+
+### initialize()
+
+```typescript
+initialize() => Promise<void>
+```
+
+Initialize biometric authentication
 
 **Since:** 0.0.1
 

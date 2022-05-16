@@ -38,6 +38,10 @@ export class CapacitorSQLiteWeb
   private sqliteEl: any = null;
   private isStoreOpen = false;
 
+  initialize(): Promise<void> {
+    return Promise.reject('no intialize in web')
+  }
+
   async initWebStore(): Promise<void> {
     await customElements.whenDefined('jeep-sqlite');
     this.sqliteEl = document.querySelector('jeep-sqlite');

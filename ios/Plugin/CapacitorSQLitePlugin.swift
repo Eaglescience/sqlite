@@ -91,6 +91,35 @@ public class CapacitorSQLitePlugin: CAPPlugin {
         }
     }
 
+    // MARK: - ValidateEncryptionSecret
+     @objc func validateEncryptionSecret(_ call: CAPPluginCall) {
+
+            guard let passphrase = call.options["passphrase"] as? String else {
+                retHandler.rResult(
+                    call: call,
+                    message: "ValidateEncryptionSecret: Must provide a passphrase")
+                return
+            }
+            do {
+                let res = try implementation?.validateEncryptionSecret(passphrase: passphrase)
+                var bRes: Bool = false
+                if res == 1 {
+                    bRes = true
+                }
+                retHandler.rResult(call: call, ret: bRes)
+                return
+            } catch CapacitorSQLiteError.failed(let message) {
+                let msg = "ValidateEncryptionSecret: \(message)"
+                retHandler.rResult(call: call, message: msg)
+                return
+            } catch let error {
+                retHandler.rResult(
+                    call: call,
+                    message: "ValidateEncryptionSecret: \(error)")
+                return
+            }
+        }
+
     // MARK: - ChangeEncryptionSecret
 
     @objc func changeEncryptionSecret(_ call: CAPPluginCall) {

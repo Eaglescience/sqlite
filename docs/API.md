@@ -118,6 +118,7 @@ The plugin add a suffix "SQLite" and an extension ".db" to the database name giv
 * [`isSecretStored()`](#issecretstored)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
 * [`changeEncryptionSecret(...)`](#changeencryptionsecret)
+* [`validateEncryptionSecret(...)`](#validateencryptionsecret)
 * [`createConnection(...)`](#createconnection)
 * [`closeConnection(...)`](#closeconnection)
 * [`echo(...)`](#echo)
@@ -243,6 +244,23 @@ in secure store
 | **`options`** | <code><a href="#capchangesecretoptions">capChangeSecretOptions</a></code> | <a href="#capchangesecretoptions">capChangeSecretOptions</a> |
 
 **Since:** 3.0.0-beta.13
+
+--------------------
+
+
+### validateEncryptionSecret(...)
+
+```typescript
+validateEncryptionSecret(options: capValidateSecretOptions) => Promise<boolean>
+```
+
+Validate (match) the given secret with the stored secret.
+
+| Param         | Type                                                                          | Description            |
+| ------------- | ----------------------------------------------------------------------------- | ---------------------- |
+| **`options`** | <code><a href="#capvalidatesecretoptions">capValidateSecretOptions</a></code> | capVerifySecretOptions |
+
+**Returns:** <code>Promise&lt;boolean&gt;</code>
 
 --------------------
 
@@ -897,6 +915,13 @@ Check if a non conformed database exists without connection
 | ------------------- | ------------------- | ------------------------------------------ |
 | **`passphrase`**    | <code>string</code> | The new passphrase for Encrypted Databases |
 | **`oldpassphrase`** | <code>string</code> | The old passphrase for Encrypted Databases |
+
+
+#### capValidateSecretOptions
+
+| Prop             | Type                | Description                            |
+| ---------------- | ------------------- | -------------------------------------- |
+| **`passphrase`** | <code>string</code> | The passphrase for Encrypted Databases |
 
 
 #### capConnectionOptions

@@ -1030,6 +1030,16 @@ export class SQLiteConnection implements ISQLiteConnection {
       return Promise.reject(err);
     }
   }
+
+  async validateEncryptionSecret(passphrase: string): Promise<boolean> {
+    try {
+      const result = await this.sqlite.validateEncryptionSecret({ passphrase: passphrase });
+      return Promise.resolve(result);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   async changeEncryptionSecret(
     passphrase: string,
     oldpassphrase: string,

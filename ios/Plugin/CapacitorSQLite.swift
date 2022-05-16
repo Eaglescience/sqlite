@@ -161,14 +161,19 @@ enum CapacitorSQLiteError: Error {
 
    // MARK: - ValidateEncryptionSecret
 
-    @objc public func validateEncryptionSecret(passphrase: String) throws {
+    @objc public func validateEncryptionSecret(passphrase: String) throws -> NSNumber {
         if isInit {
             if isEncryption {
                 do {
                     // verify encryption secret
-                    return UtilsSecret
+                    let result: Bool = UtilsSecret
                         .validatePassphrase(account: account,
                                              passphrase: passphrase)
+                    if result {
+                        return 1
+                    } else {
+                        return 0
+                    }
                 } catch UtilsSecretError.validateEncryptionSecret(let message) {
                     throw CapacitorSQLiteError.failed(message: message)
                 } catch let error {

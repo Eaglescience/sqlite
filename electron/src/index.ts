@@ -31,6 +31,7 @@ import type {
   capNCOptions,
   capNCDatabasePathResult,
   capSQLiteUrl,
+  capValidateSecretOptions
 } from '../../src/definitions';
 
 import { Database } from './electron-utils/Database';
@@ -61,6 +62,10 @@ export class CapacitorSQLite implements CapacitorSQLitePlugin {
     return Promise.reject('Method not implemented.');
   }
   async changeEncryptionSecret(options: capChangeSecretOptions): Promise<void> {
+    console.log(`${JSON.stringify(options)}`);
+    return Promise.reject('Method not implemented.');
+  }
+  async validateEncryptionSecret(options: capValidateSecretOptions): Promise<boolean> {
     console.log(`${JSON.stringify(options)}`);
     return Promise.reject('Method not implemented.');
   }

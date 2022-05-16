@@ -76,6 +76,37 @@ public class CapacitorSQLite {
         this.biometricAuth = this.config.getBiometricAuth();
         this.biometricTitle = this.config.getBiometricTitle();
         this.biometricSubTitle = this.config.getBiometricSubTitle();
+    }
+
+    private void notifyBiometricEvent(Boolean ret, String msg) {
+        Map<String, Object> info = new HashMap<String, Object>() {
+            {
+                put("result", ret);
+                put("message", msg);
+            }
+        };
+        Log.v(TAG, "$$$$$ in notifyBiometricEvent " + info);
+        NotificationCenter.defaultCenter().postNotification("biometricResults", info);
+    }
+
+    private void setSharedPreferences() throws Exception {
+        try {
+            // get instance of the EncryptedSharedPreferences class
+            this.sharedPreferences =
+                EncryptedSharedPreferences.create(
+                    context,
+                    "sqlite_encrypted_shared_prefs",
+                    masterKeyAlias,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                );
+            this.uSecret = new UtilsSecret(this.context, this.sharedPreferences);
+        } catch (Exception e) {
+            throw new Exception(e.getMessage());
+        }
+    }
+
+    public void initialize() {
         try {
             if (isEncryption) {
                 // create or retrieve masterkey from Android keystore
@@ -92,10 +123,10 @@ public class CapacitorSQLite {
                                 Enumeration<String> aliases = ks.aliases();
                                 if (aliases.hasMoreElements()) {
                                     masterKeyAlias =
-                                        new MasterKey.Builder(context)
-                                            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                                            .setUserAuthenticationRequired(true, VALIDITY_DURATION)
-                                            .build();
+                                            new MasterKey.Builder(context)
+                                                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                                                    .setUserAuthenticationRequired(true, VALIDITY_DURATION)
+                                                    .build();
                                 } else {
                                     masterKeyAlias = new MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build();
                                 }
@@ -130,34 +161,6 @@ public class CapacitorSQLite {
                     setSharedPreferences();
                 }
             }
-        } catch (Exception e) {
-            throw new Exception(e.getMessage());
-        }
-    }
-
-    private void notifyBiometricEvent(Boolean ret, String msg) {
-        Map<String, Object> info = new HashMap<String, Object>() {
-            {
-                put("result", ret);
-                put("message", msg);
-            }
-        };
-        Log.v(TAG, "$$$$$ in notifyBiometricEvent " + info);
-        NotificationCenter.defaultCenter().postNotification("biometricResults", info);
-    }
-
-    private void setSharedPreferences() throws Exception {
-        try {
-            // get instance of the EncryptedSharedPreferences class
-            this.sharedPreferences =
-                EncryptedSharedPreferences.create(
-                    context,
-                    "sqlite_encrypted_shared_prefs",
-                    masterKeyAlias,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                );
-            this.uSecret = new UtilsSecret(this.context, this.sharedPreferences);
         } catch (Exception e) {
             throw new Exception(e.getMessage());
         }
@@ -216,7 +219,7 @@ public class CapacitorSQLite {
         if (isEncryption) {
             try {
                 // set encryption secret
-                return uSecret.getPassphrase().equals(passphrase)
+                return uSecret.getPassphrase().equals(passphrase);
             } catch (Exception e) {
                 throw new Exception(e.getMessage());
             }

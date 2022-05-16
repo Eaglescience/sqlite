@@ -106,7 +106,7 @@ public class CapacitorSQLite {
         }
     }
 
-    public void initialize() throws Exception {
+    public void initialize(String biometricTitle, String biometricSubTitle) throws Exception {
         try {
             if (isEncryption) {
                 // create or retrieve masterkey from Android keystore
@@ -151,7 +151,7 @@ public class CapacitorSQLite {
                     };
                     UtilsBiometric uBiom = new UtilsBiometric(context, biometricManager, listener);
                     if (uBiom.checkBiometricIsAvailable()) {
-                        uBiom.showBiometricDialog(this.biometricTitle, this.biometricSubTitle);
+                        uBiom.showBiometricDialog(biometricTitle, biometricSubTitle);
                     } else {
                         masterKeyAlias = new MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build();
                         setSharedPreferences();
@@ -202,6 +202,21 @@ public class CapacitorSQLite {
                 closeAllConnections();
                 // set encryption secret
                 uSecret.setEncryptionSecret(passphrase);
+            } catch (Exception e) {
+                throw new Exception(e.getMessage());
+            }
+        } else {
+            throw new Exception("No Encryption set in capacitor.config");
+        }
+    }
+
+    public void resetPassphrase() throws Exception {
+        if (isEncryption) {
+            try {
+                // close all connections
+                closeAllConnections();
+                // reset passphrase
+                uSecret.resetPassphrase();
             } catch (Exception e) {
                 throw new Exception(e.getMessage());
             }

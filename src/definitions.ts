@@ -29,6 +29,13 @@ export interface CapacitorSQLitePlugin {
    */
   isSecretStored(): Promise<capSQLiteResult>;
   /**
+   * Reset passphrase with empty string
+   *
+   * @return Promise<void>
+   * @since 3.0.0-beta.13
+   */
+  resetPassphrase(): Promise<void>;
+  /**
    * Store a passphrase in a secure store
    * Update the secret of previous encrypted databases with GlobalSQLite
    * !!! Only to be used once if you wish to encrypt database !!!
@@ -83,7 +90,7 @@ export interface CapacitorSQLitePlugin {
    * @return Promise<void>
    * @since 0.0.1
    */
-  initialize(): Promise<void>;
+  initialize(options: capInitializeOptions): Promise<void>;
   /**
    * Open a SQLite database
    * @param options: capSQLiteOptions
@@ -308,6 +315,13 @@ export interface CapacitorSQLitePlugin {
   isNCDatabase(options: capNCOptions): Promise<capSQLiteResult>;
 }
 
+export interface capInitializeOptions {
+  /**
+   * Title and subtitle for biometric auth
+   */
+  biometricTitle?: string;
+  biometricSubtitle?: string;
+}
 export interface capSetSecretOptions {
   /**
    * The passphrase for Encrypted Databases
@@ -789,6 +803,12 @@ export interface ISQLiteConnection {
    */
   isSecretStored(): Promise<capSQLiteResult>;
   /**
+   * Reset passphrase with empty string
+   * @returns Promise<void>
+   * @since 3.0.0-beta.13
+   */
+  resetPassphrase(): Promise<void>;
+  /**
    * Set a passphrase in a secure store
    * @param passphrase
    * @returns Promise<void>
@@ -1024,6 +1044,15 @@ export class SQLiteConnection implements ISQLiteConnection {
     try {
       const res: capSQLiteResult = await this.sqlite.isSecretStored();
       return Promise.resolve(res);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async resetPassphrase(): Promise<void> {
+    try {
+      await this.sqlite.resetPassphrase();
+      return Promise.resolve();
     } catch (err) {
       return Promise.reject(err);
     }

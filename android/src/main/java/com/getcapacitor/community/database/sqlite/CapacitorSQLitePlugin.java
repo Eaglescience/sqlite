@@ -75,6 +75,26 @@ public class CapacitorSQLitePlugin extends Plugin {
     }
 
     /**
+     * Initialize Method
+     * Use biometric authentication
+     *
+     * @param call
+     */
+    @PluginMethod
+    public void initialize(PluginCall call) {
+        if (implementation != null) {
+            try {
+                implementation.initialize();
+                rHandler.retResult(call, null, null);
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        } else {
+            call.reject(loadMessage);
+        }
+    }
+
+    /**
      * IsSecretStored
      * Check if a secret has been stored
      *

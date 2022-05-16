@@ -78,6 +78,13 @@ export interface CapacitorSQLitePlugin {
    */
   echo(options: capEchoOptions): Promise<capEchoResult>;
   /**
+   * Initialize biometric authentication
+   *
+   * @return Promise<void>
+   * @since 0.0.1
+   */
+  initialize(): Promise<void>;
+  /**
    * Open a SQLite database
    * @param options: capSQLiteOptions
    * @returns Promise<void>

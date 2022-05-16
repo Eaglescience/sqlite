@@ -41,6 +41,13 @@ public class CapacitorSQLitePlugin: CAPPlugin {
         }
     }
 
+    // MARK: - Initialize
+
+        @objc func initialize(_ call: CAPPluginCall) {
+            implementation?.initialize()
+            retHandler.rResult(call: call)
+        }
+
     // MARK: - IsSecretStored
 
     @objc func isSecretStored(_ call: CAPPluginCall) {

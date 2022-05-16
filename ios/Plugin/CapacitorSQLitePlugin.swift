@@ -43,10 +43,16 @@ public class CapacitorSQLitePlugin: CAPPlugin {
 
     // MARK: - Initialize
 
-        @objc func initialize(_ call: CAPPluginCall) {
-            implementation?.initialize()
-            retHandler.rResult(call: call)
-        }
+    @objc func initialize(_ call: CAPPluginCall) {
+        guard let biometricSubtitle = call.options["biometricSubtitle"] as? String else {
+                    retHandler.rResult(
+                        call: call,
+                        message: "Initialize: Must provide a biometricSubtitle")
+                    return
+                }
+        implementation?.initialize(biometricSubtitle)
+        retHandler.rResult(call: call)
+    }
 
     // MARK: - IsSecretStored
 
@@ -71,6 +77,25 @@ public class CapacitorSQLitePlugin: CAPPlugin {
         }
 
     }
+
+    // MARK: - ResetPassphrase
+
+        @objc func resetPassphrase(_ call: CAPPluginCall) {
+            do {
+                try implementation?.resetPassphrase()
+                retHandler.rResult(call: call)
+                return
+            } catch CapacitorSQLiteError.failed(let message) {
+                let msg = "ResetPassphrase: \(message)"
+                retHandler.rResult(call: call, message: msg)
+                return
+            } catch let error {
+                retHandler.rResult(
+                    call: call,
+                    message: "ResetPassphrase: \(error)")
+                return
+            }
+        }
 
     // MARK: - SetEncryptionSecret
 

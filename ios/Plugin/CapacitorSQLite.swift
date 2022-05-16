@@ -67,7 +67,7 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - Initialize
 
-    @objc public func initialize() throws {
+    @objc public func initialize(biometricSubtitle: String) throws {
             if isEncryption {
                             if let kcPrefix: String = config.iosKeychainPrefix {
                                 account = "\(kcPrefix)_\(oldAccount)"
@@ -75,10 +75,7 @@ enum CapacitorSQLiteError: Error {
                             }
                             if let isBioAuth = config.biometricAuth {
                                 if isBioAuth == 1 {
-                                    if let bTitle = config.biometricTitle {
-                                        biometricTitle = bTitle
-                                        bioIdAuth.biometricTitle = bTitle
-                                    }
+                                    bioIdAuth.biometricTitle = biometricSubtitle
                                     do {
                                         let bioType: BiometricType = try
                                             bioIdAuth.biometricType()
@@ -138,6 +135,31 @@ enum CapacitorSQLiteError: Error {
             throw CapacitorSQLiteError.failed(message: initMessage)
         }
     }
+
+    // MARK: - ResetPassphrase
+
+        @objc public func resetPassphrase()  throws {
+                                                            if isInit {
+                                                                if isEncryption {
+                                                                    do {
+                                                                        // close all connections
+                                                                        try closeAllConnections()
+                                                                        // set encryption secret
+                                                                        try UtilsSecret
+                                                                            .resetPassphrase()
+                                                                        return
+                                                                    } catch UtilsSecretError.resetPassphrase(let message) {
+                                                                        throw CapacitorSQLiteError.failed(message: message)
+                                                                    } catch let error {
+                                                                        throw CapacitorSQLiteError.failed(message: "\(error)")
+                                                                    }
+                                                                } else {
+                                                                    throw CapacitorSQLiteError.failed(message: "No Encryption set in capacitor.config")
+                                                                }
+                                                            } else {
+                                                                throw CapacitorSQLiteError.failed(message: initMessage)
+                                                            }
+                                                        }
 
     // MARK: - SetEncryptionSecret
 

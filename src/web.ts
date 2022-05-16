@@ -29,7 +29,7 @@ import type {
   capNCConnectionOptions,
   capNCOptions,
   capNCDatabasePathResult,
-  capSQLiteUrl, capValidateSecretOptions,
+  capSQLiteUrl, capValidateSecretOptions, capInitializeOptions,
 } from './definitions';
 
 export class CapacitorSQLiteWeb
@@ -38,7 +38,7 @@ export class CapacitorSQLiteWeb
   private sqliteEl: any = null;
   private isStoreOpen = false;
 
-  initialize(): Promise<void> {
+  initialize(options: capInitializeOptions): Promise<void> {
     return Promise.reject('no intialize in web')
   }
 
@@ -91,6 +91,9 @@ export class CapacitorSQLiteWeb
     }
   }
   async isSecretStored(): Promise<capSQLiteResult> {
+    throw this.unimplemented('Not implemented on web.');
+  }
+  async resetPassphrase(): Promise<void> {
     throw this.unimplemented('Not implemented on web.');
   }
   async setEncryptionSecret(options: capSetSecretOptions): Promise<void> {

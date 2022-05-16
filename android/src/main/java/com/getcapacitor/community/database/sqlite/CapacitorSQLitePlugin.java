@@ -83,12 +83,25 @@ public class CapacitorSQLitePlugin extends Plugin {
     @PluginMethod
     public void initialize(PluginCall call) {
         if (implementation != null) {
-            try {
-                implementation.initialize();
-                rHandler.retResult(call, null, null);
-            } catch (Exception e) {
-                call.reject(e.getMessage());
+            if (!call.getData().has("biometricTitle") || !call.getData().has("biometricSubtitle")) {
+                String msg = "Initialize: Must provide a title/subtitle";
+                rHandler.retResult(call, null, msg);
+                return;
             }
+            getActivity()
+                    .runOnUiThread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        implementation.initialize(call.getString("biometricTitle"),
+                                                call.getString("biometricSubtitle"));
+                                        rHandler.retResult(call, null, null);
+                                    } catch (Exception e) {
+                                        call.reject(e.getMessage());
+                                    }
+                                }
+                            });
         } else {
             call.reject(loadMessage);
         }
@@ -109,6 +122,30 @@ public class CapacitorSQLitePlugin extends Plugin {
                 return;
             } catch (Exception e) {
                 String msg = "IsSecretStored: " + e.getMessage();
+                rHandler.retResult(call, null, msg);
+                return;
+            }
+        } else {
+            rHandler.retResult(call, null, loadMessage);
+            return;
+        }
+    }
+
+    /**
+     * resetPassphrase
+     * Reset current passphrase to empty string
+     *
+     * @param call
+     */
+    @PluginMethod
+    public void resetPassphrase(PluginCall call) {
+        if (implementation != null) {
+            try {
+                implementation.resetPassphrase();
+                rHandler.retResult(call, null, null);
+                return;
+            } catch (Exception e) {
+                String msg = "resetPassphrase: " + e.getMessage();
                 rHandler.retResult(call, null, msg);
                 return;
             }

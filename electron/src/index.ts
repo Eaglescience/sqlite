@@ -73,7 +73,7 @@ export class CapacitorSQLite implements CapacitorSQLitePlugin {
     console.log(`${JSON.stringify(options)}`);
     return Promise.reject('Method not implemented.');
   }
-  async validateEncryptionSecret(options: capValidateSecretOptions): Promise<boolean> {
+  async validateEncryptionSecret(options: capValidateSecretOptions): Promise<capSQLiteResult> {
     console.log(`${JSON.stringify(options)}`);
     return Promise.reject('Method not implemented.');
   }

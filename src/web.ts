@@ -105,7 +105,7 @@ export class CapacitorSQLiteWeb
     console.log('changeEncryptionSecret', options);
     throw this.unimplemented('Not implemented on web.');
   }
-  async validateEncryptionSecret(options: capValidateSecretOptions): Promise<boolean> {
+  async validateEncryptionSecret(options: capValidateSecretOptions): Promise<capSQLiteResult> {
     console.log('validateEncryptionSecret', options);
     throw this.unimplemented('Not implemented on web.');
   }

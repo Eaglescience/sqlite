@@ -12,6 +12,7 @@ enum UtilsSecretError: Error {
     case prefixPassphrase(message: String)
     case setPassphrase(message: String)
     case changePassphrase(message: String)
+    case resetPassphrase(message: String)
     case setEncryptionSecret(message: String)
     case changeEncryptionSecret(message: String)
     case validateEncryptionSecret(message: String)
@@ -82,6 +83,17 @@ class UtilsSecret {
             ret = true
         }
         return ret
+    }
+
+    // MARK: - ResetPassphrase
+
+    class func resetPassphrase(account: String) throws {
+        do {
+            try setPassphrase(account: account, passphrase: "")
+            return
+        } catch UtilsSecretError.setPassphrase(let message) {
+            throw UtilsSecretError.resetPassphrase(message: message)
+        }
     }
 
     // MARK: - ChangePassphrase

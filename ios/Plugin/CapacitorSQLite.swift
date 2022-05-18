@@ -68,48 +68,48 @@ enum CapacitorSQLiteError: Error {
     // MARK: - Initialize
 
     @objc public func initialize(biometricSubtitle: String) throws {
-            if isEncryption {
-                            if let kcPrefix: String = config.iosKeychainPrefix {
-                                account = "\(kcPrefix)_\(oldAccount)"
-                                prefixKeychain = kcPrefix
-                            }
-                            if let isBioAuth = config.biometricAuth {
-                                if isBioAuth == 1 {
-                                    bioIdAuth.biometricTitle = biometricSubtitle
-                                    do {
-                                        let bioType: BiometricType = try
-                                            bioIdAuth.biometricType()
-                                        if bioType == BiometricType.faceID ||
-                                            bioType == BiometricType.touchID {
-                                            isBiometricAuth = true
-                                            isInit = true
-                                            bioIdAuth.authenticateUser { [weak self] message in
-                                                if let message = message {
-                                                    self?.notifyBiometricEvents(name: .biometricEvent,
-                                                                                result: false,
-                                                                                msg: message)
-                                                } else {
-                                                    self?.notifyBiometricEvents(name: .biometricEvent,
-                                                                                result: true,
-                                                                                msg: "")
-                                                }
-                                            }
-                                        } else {
-                                            self.notifyBiometricEvents(name: .biometricEvent,
-                                                                       result: false,
-                                                                       msg: "Biometric not set-up")
-                                        }
-                                    } catch BiometricIDAuthenticationError
-                                                .biometricType(let message) {
-                                        initMessage =  message
-                                    } catch let error {
-                                        initMessage = "Init Plugin failed :"
-                                        initMessage.append(" \(error.localizedDescription)")
-                                    }
+        if isEncryption {
+            if let kcPrefix: String = config.iosKeychainPrefix {
+                account = "\(kcPrefix)_\(oldAccount)"
+                prefixKeychain = kcPrefix
+            }
+            if let isBioAuth = config.biometricAuth {
+                if isBioAuth == 1 {
+                    bioIdAuth.biometricTitle = biometricSubtitle
+                    do {
+                        let bioType: BiometricType = try
+                            bioIdAuth.biometricType()
+                        if bioType == BiometricType.faceID ||
+                            bioType == BiometricType.touchID {
+                            isBiometricAuth = true
+                            isInit = true
+                            bioIdAuth.authenticateUser { [weak self] message in
+                                if let message = message {
+                                    self?.notifyBiometricEvents(name: .biometricEvent,
+                                                                result: false,
+                                                                msg: message)
+                                } else {
+                                    self?.notifyBiometricEvents(name: .biometricEvent,
+                                                                result: true,
+                                                                msg: "")
                                 }
                             }
+                        } else {
+                            self.notifyBiometricEvents(name: .biometricEvent,
+                                                       result: false,
+                                                       msg: "Biometric not set-up")
                         }
+                    } catch BiometricIDAuthenticationError
+                                .biometricType(let message) {
+                        initMessage =  message
+                    } catch let error {
+                        initMessage = "Init Plugin failed :"
+                        initMessage.append(" \(error.localizedDescription)")
+                    }
+                }
+            }
         }
+    }
 
 
     // MARK: - IsSecretStored
@@ -139,27 +139,27 @@ enum CapacitorSQLiteError: Error {
     // MARK: - ResetPassphrase
 
         @objc public func resetPassphrase()  throws {
-                                                            if isInit {
-                                                                if isEncryption {
-                                                                    do {
-                                                                        // close all connections
-                                                                        try closeAllConnections()
-                                                                        // set encryption secret
-                                                                        try UtilsSecret
-                                                                            .resetPassphrase()
-                                                                        return
-                                                                    } catch UtilsSecretError.resetPassphrase(let message) {
-                                                                        throw CapacitorSQLiteError.failed(message: message)
-                                                                    } catch let error {
-                                                                        throw CapacitorSQLiteError.failed(message: "\(error)")
-                                                                    }
-                                                                } else {
-                                                                    throw CapacitorSQLiteError.failed(message: "No Encryption set in capacitor.config")
-                                                                }
-                                                            } else {
-                                                                throw CapacitorSQLiteError.failed(message: initMessage)
-                                                            }
-                                                        }
+            if isInit {
+                if isEncryption {
+                    do {
+                        // close all connections
+                        try closeAllConnections()
+                        // set encryption secret
+                        try UtilsSecret
+                            .resetPassphrase(account: account)
+                        return
+                    } catch UtilsSecretError.resetPassphrase(let message) {
+                        throw CapacitorSQLiteError.failed(message: message)
+                    } catch let error {
+                        throw CapacitorSQLiteError.failed(message: "\(error)")
+                    }
+                } else {
+                    throw CapacitorSQLiteError.failed(message: "No Encryption set in capacitor.config")
+                }
+            } else {
+                throw CapacitorSQLiteError.failed(message: initMessage)
+            }
+        }
 
     // MARK: - SetEncryptionSecret
 

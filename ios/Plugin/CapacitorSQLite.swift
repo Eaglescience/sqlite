@@ -68,7 +68,13 @@ enum CapacitorSQLiteError: Error {
     // MARK: - Initialize
 
     @objc public func initialize() throws {
-        isInit = true
+        if isEncryption {
+                    if let kcPrefix: String = config.iosKeychainPrefix {
+                        account = "\(kcPrefix)_\(oldAccount)"
+                        prefixKeychain = kcPrefix
+                    }
+                    isInit = true
+        }
     }
 
     // MARK: - CheckBiometricAuth

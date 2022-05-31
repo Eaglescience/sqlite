@@ -82,19 +82,12 @@ public class CapacitorSQLitePlugin extends Plugin {
     @PluginMethod
     public void initialize(PluginCall call) {
         if (implementation != null) {
-            getActivity()
-                    .runOnUiThread(
-                            new Runnable() {
-                                @Override
-                                public void run() {
                                     try {
                                         implementation.initialize();
                                         rHandler.retResult(call, null, null);
                                     } catch (Exception e) {
                                         call.reject(e.getMessage());
                                     }
-                                }
-                            });
         } else {
             call.reject(loadMessage);
         }
@@ -114,16 +107,23 @@ public class CapacitorSQLitePlugin extends Plugin {
                 rHandler.retResult(call, null, msg);
                 return;
             }
-            try {
-                Boolean res = implementation.checkBiometricAuth(call.getString("biometricTitle"),
-                        call.getString("biometricSubtitle"));
-                rHandler.retResult(call, res, null);
-                return;
-            } catch (Exception e) {
-                String msg = "CheckBiometricAuth: " + e.getMessage();
-                rHandler.retResult(call, null, msg);
-                return;
-            }
+            getActivity()
+                    .runOnUiThread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        implementation.checkBiometricAuth(call.getString("biometricTitle"),
+                                                call.getString("biometricSubtitle"));
+                                        rHandler.retResult(call, null, null);
+                                        return;
+                                    } catch (Exception e) {
+                                        String msg = "CheckBiometricAuth: " + e.getMessage();
+                                        rHandler.retResult(call, null, msg);
+                                        return;
+                                    }
+                                }
+                            });
         } else {
             rHandler.retResult(call, null, loadMessage);
             return;

@@ -44,8 +44,20 @@ public class CapacitorSQLitePlugin: CAPPlugin {
     // MARK: - Initialize
 
     @objc func initialize(_ call: CAPPluginCall) {
-        implementation?.initialize()
-        retHandler.rResult(call: call)
+        do {
+            try implementation?.initialize()
+            retHandler.rResult(call: call)
+            return
+        } catch CapacitorSQLiteError.failed(let message) {
+            let msg = "Initialize: \(message)"
+            retHandler.rResult(call: call, message: msg)
+            return
+        } catch let error {
+            retHandler.rResult(
+                call: call,
+                message: "Initialize: \(error)")
+            return
+        }
     }
     
     // MARK: - CheckBiometricAuth
@@ -58,12 +70,8 @@ public class CapacitorSQLitePlugin: CAPPlugin {
                             return
                         }
         do {
-            let res = try implementation?.checkBiometricAuth(biometricSubtitle)
-            var bRes: Bool = false
-            if res == 1 {
-                bRes = true
-            }
-            retHandler.rResult(call: call, ret: bRes)
+            try implementation?.checkBiometricAuth(biometricSubtitle: biometricSubtitle)
+            retHandler.rResult(call: call)
             return
         } catch CapacitorSQLiteError.failed(let message) {
             let msg = "CheckBiometricAuth: \(message)"
@@ -75,7 +83,6 @@ public class CapacitorSQLitePlugin: CAPPlugin {
                 message: "CheckBiometricAuth: \(error)")
             return
         }
-
     }
 
     // MARK: - IsSecretStored

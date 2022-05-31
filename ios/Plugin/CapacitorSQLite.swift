@@ -73,7 +73,7 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - CheckBiometricAuth
 
-    @objc public func checkBiometricAuth(biometricSubtitle: String)  throws -> NSNumber {
+    @objc public func checkBiometricAuth(biometricSubtitle: String) throws {
         if isInit {
             if isEncryption {
                 if let isBioAuth = config.biometricAuth {
@@ -90,19 +90,16 @@ enum CapacitorSQLiteError: Error {
                                                     self?.notifyBiometricEvents(name: .biometricEvent,
                                                                                 result: false,
                                                                                 msg: message)
-                                                    return 0;
                                                 } else {
                                                     self?.notifyBiometricEvents(name: .biometricEvent,
                                                                                 result: true,
                                                                                 msg: "")
-                                                    return 1;
                                                 }
                                             }
                                         } else {
                                             self.notifyBiometricEvents(name: .biometricEvent,
                                                                        result: false,
                                                                        msg: "Biometric not set-up")
-                                            return 0;
                                         }
                                     } catch BiometricIDAuthenticationError
                                                 .biometricType(let message) {

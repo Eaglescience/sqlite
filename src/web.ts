@@ -90,7 +90,7 @@ export class CapacitorSQLiteWeb
       throw this.unimplemented('Not implemented on web.');
     }
   }
-  async checkBiometricAuth(options: capBiometricAuthOptions): Promise<capSQLiteResult> {
+  async checkBiometricAuth(options: capBiometricAuthOptions): Promise<void> {
     console.log('checkBiometricAuth', options);
     throw this.unimplemented('Not implemented on web.');
   }

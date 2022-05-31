@@ -1,6 +1,6 @@
 {
   "name": "@ess/sqlite",
-  "version": "3.4.3-rc12",
+  "version": "3.4.3-rc13",
   "description": "Community plugin for native & electron SQLite databases",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",

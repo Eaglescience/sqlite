@@ -132,7 +132,7 @@ public class CapacitorSQLite {
      * CheckBiometricAuth
      * @throws Exception
      */
-    public Boolean checkBiometricAuth(String biometricTitle, String biometricSubTitle) throws Exception {
+    public void checkBiometricAuth(String biometricTitle, String biometricSubTitle) throws Exception {
         if (isEncryption) {
             if (biometricAuth) {
                 biometricManager = BiometricManager.from(this.context);
@@ -141,13 +141,11 @@ public class CapacitorSQLite {
                     public void onSuccess(BiometricPrompt.AuthenticationResult result) {
                         try {
                             notifyBiometricEvent(true, null);
-                            return true;
                         } catch (Exception e) {
                             String input = e.getMessage();
                             Log.e("MY_APP_TAG", input);
                             //                            Toast.makeText(context, input, Toast.LENGTH_LONG).show();
                             notifyBiometricEvent(false, input);
-                            return false;
                         }
                     }
 
@@ -157,15 +155,12 @@ public class CapacitorSQLite {
                         Log.e("MY_APP_TAG", input);
                         //                        Toast.makeText(context, input, Toast.LENGTH_LONG).show();
                         notifyBiometricEvent(false, input);
-                        return false;
                     }
                 };
                 UtilsBiometric uBiom = new UtilsBiometric(context, biometricManager, listener);
                 if (uBiom.checkBiometricIsAvailable()) {
                     uBiom.showBiometricDialog(biometricTitle, biometricSubTitle);
                 }
-            } else {
-                return false;
             }
         } else {
             throw new Exception("No Encryption set in capacitor.config");

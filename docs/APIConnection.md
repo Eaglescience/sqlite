@@ -101,7 +101,7 @@ Echo a value
 ### checkBiometricAuth(...)
 
 ```typescript
-checkBiometricAuth(biometricTitle: string, biometricSubtitle: string) => Promise<capSQLiteResult>
+checkBiometricAuth(biometricTitle: string, biometricSubtitle: string) => Promise<void>
 ```
 
 Check biometric authentication
@@ -110,8 +110,6 @@ Check biometric authentication
 | ----------------------- | ------------------- |
 | **`biometricTitle`**    | <code>string</code> |
 | **`biometricSubtitle`** | <code>string</code> |
-
-**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 
 **Since:** 3.0.0-beta.13
 

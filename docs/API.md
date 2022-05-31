@@ -216,7 +216,7 @@ Check if a passphrase exists in a secure store
 ### checkBiometricAuth(...)
 
 ```typescript
-checkBiometricAuth(options: capBiometricAuthOptions) => Promise<capSQLiteResult>
+checkBiometricAuth(options: capBiometricAuthOptions) => Promise<void>
 ```
 
 Check biometric authentication
@@ -224,8 +224,6 @@ Check biometric authentication
 | Param         | Type                                                                        | Description                                                    |
 | ------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | **`options`** | <code><a href="#capbiometricauthoptions">capBiometricAuthOptions</a></code> | <a href="#capbiometricauthoptions">capBiometricAuthOptions</a> |
-
-**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 
 **Since:** 3.0.0-beta.13
 

@@ -31,6 +31,7 @@ export interface CapacitorSQLitePlugin {
   /**
    * Check biometric authentication
    *
+   * @param options capBiometricAuthOptions
    * @return Promise<void>
    * @since 3.0.0-beta.13
    */

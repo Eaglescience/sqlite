@@ -116,6 +116,7 @@ The plugin add a suffix "SQLite" and an extension ".db" to the database name giv
 * [`initWebStore()`](#initwebstore)
 * [`saveToStore(...)`](#savetostore)
 * [`isSecretStored()`](#issecretstored)
+* [`checkBiometricAuth(...)`](#checkbiometricauth)
 * [`resetPassphrase()`](#resetpassphrase)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
 * [`changeEncryptionSecret(...)`](#changeencryptionsecret)
@@ -123,7 +124,7 @@ The plugin add a suffix "SQLite" and an extension ".db" to the database name giv
 * [`createConnection(...)`](#createconnection)
 * [`closeConnection(...)`](#closeconnection)
 * [`echo(...)`](#echo)
-* [`initialize(...)`](#initialize)
+* [`initialize()`](#initialize)
 * [`open(...)`](#open)
 * [`close(...)`](#close)
 * [`getUrl(...)`](#geturl)
@@ -204,6 +205,25 @@ isSecretStored() => Promise<capSQLiteResult>
 ```
 
 Check if a passphrase exists in a secure store
+
+**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
+
+**Since:** 3.0.0-beta.13
+
+--------------------
+
+
+### checkBiometricAuth(...)
+
+```typescript
+checkBiometricAuth(options: capBiometricAuthOptions) => Promise<capSQLiteResult>
+```
+
+Check biometric authentication
+
+| Param         | Type                                                                        |
+| ------------- | --------------------------------------------------------------------------- |
+| **`options`** | <code><a href="#capbiometricauthoptions">capBiometricAuthOptions</a></code> |
 
 **Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 
@@ -333,17 +353,13 @@ Echo a given string
 --------------------
 
 
-### initialize(...)
+### initialize()
 
 ```typescript
-initialize(options: capInitializeOptions) => Promise<void>
+initialize() => Promise<void>
 ```
 
-Initialize biometric authentication
-
-| Param         | Type                                                                  |
-| ------------- | --------------------------------------------------------------------- |
-| **`options`** | <code><a href="#capinitializeoptions">capInitializeOptions</a></code> |
+Initialize
 
 **Since:** 0.0.1
 
@@ -934,6 +950,14 @@ Check if a non conformed database exists without connection
 | **`result`** | <code>boolean</code> | result set to true when successful else false |
 
 
+#### capBiometricAuthOptions
+
+| Prop                    | Type                | Description                           |
+| ----------------------- | ------------------- | ------------------------------------- |
+| **`biometricTitle`**    | <code>string</code> | Title and subtitle for biometric auth |
+| **`biometricSubtitle`** | <code>string</code> |                                       |
+
+
 #### capSetSecretOptions
 
 | Prop             | Type                | Description                            |
@@ -978,14 +1002,6 @@ Check if a non conformed database exists without connection
 | Prop        | Type                | Description         |
 | ----------- | ------------------- | ------------------- |
 | **`value`** | <code>string</code> | String to be echoed |
-
-
-#### capInitializeOptions
-
-| Prop                    | Type                | Description                           |
-| ----------------------- | ------------------- | ------------------------------------- |
-| **`biometricTitle`**    | <code>string</code> | Title and subtitle for biometric auth |
-| **`biometricSubtitle`** | <code>string</code> |                                       |
 
 
 #### capSQLiteUrl

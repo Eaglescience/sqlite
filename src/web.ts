@@ -91,6 +91,7 @@ export class CapacitorSQLiteWeb
     }
   }
   async checkBiometricAuth(options: capBiometricAuthOptions): Promise<capSQLiteResult> {
+    console.log('checkBiometricAuth', options);
     throw this.unimplemented('Not implemented on web.');
   }
   async isSecretStored(): Promise<capSQLiteResult> {

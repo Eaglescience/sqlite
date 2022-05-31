@@ -31,7 +31,7 @@ import type {
   capNCOptions,
   capNCDatabasePathResult,
   capSQLiteUrl,
-  capValidateSecretOptions
+  capValidateSecretOptions, capBiometricAuthOptions
 } from '../../src/definitions';
 
 import { Database } from './electron-utils/Database';
@@ -60,6 +60,10 @@ export class CapacitorSQLite implements CapacitorSQLitePlugin {
     return Promise.reject('Method not implemented.');
   }
   async isSecretStored(): Promise<capSQLiteResult> {
+    return Promise.reject('Method not implemented.');
+  }
+  async checkBiometricAuth(options: capBiometricAuthOptions): Promise<capSQLiteResult> {
+    console.log(`${JSON.stringify(options)}`);
     return Promise.reject('Method not implemented.');
   }
   async resetPassphrase(): Promise<void> {

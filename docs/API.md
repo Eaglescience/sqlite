@@ -221,9 +221,9 @@ checkBiometricAuth(options: capBiometricAuthOptions) => Promise<capSQLiteResult>
 
 Check biometric authentication
 
-| Param         | Type                                                                        |
-| ------------- | --------------------------------------------------------------------------- |
-| **`options`** | <code><a href="#capbiometricauthoptions">capBiometricAuthOptions</a></code> |
+| Param         | Type                                                                        | Description                                                    |
+| ------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **`options`** | <code><a href="#capbiometricauthoptions">capBiometricAuthOptions</a></code> | <a href="#capbiometricauthoptions">capBiometricAuthOptions</a> |
 
 **Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 

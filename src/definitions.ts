@@ -32,7 +32,7 @@ export interface CapacitorSQLitePlugin {
    * Check biometric authentication
    *
    * @param options capBiometricAuthOptions
-   * @return Promise<void>
+   * @return Promise<capSQLiteResult>
    * @since 3.0.0-beta.13
    */
   checkBiometricAuth(options: capBiometricAuthOptions): Promise<capSQLiteResult>;
@@ -805,6 +805,15 @@ export interface ISQLiteConnection {
    */
   echo(value: string): Promise<capEchoResult>;
   /**
+   * Check biometric authentication
+   *
+   * @param biometricTitle
+   * @param biometricSubtitle
+   * @return Promise<capSQLiteResult>
+   * @since 3.0.0-beta.13
+   */
+  checkBiometricAuth(biometricTitle: string, biometricSubtitle: string): Promise<capSQLiteResult>;
+  /**
    * Check if a secret is stored
    * @returns Promise<capSQLiteResult>
    * @since 3.0.0-beta.13
@@ -1048,6 +1057,17 @@ export class SQLiteConnection implements ISQLiteConnection {
       return Promise.reject(err);
     }
   }
+
+  async checkBiometricAuth(biometricTitle: string, biometricSubtitle: string): Promise<capSQLiteResult> {
+    try {
+      const res: capSQLiteResult = await this.sqlite.checkBiometricAuth({biometricTitle: biometricTitle,
+        biometricSubtitle: biometricSubtitle});
+      return Promise.resolve(res);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   async isSecretStored(): Promise<capSQLiteResult> {
     try {
       const res: capSQLiteResult = await this.sqlite.isSecretStored();

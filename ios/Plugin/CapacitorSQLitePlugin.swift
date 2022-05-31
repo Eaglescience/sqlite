@@ -44,14 +44,38 @@ public class CapacitorSQLitePlugin: CAPPlugin {
     // MARK: - Initialize
 
     @objc func initialize(_ call: CAPPluginCall) {
-        guard let biometricSubtitle = call.options["biometricSubtitle"] as? String else {
-                    retHandler.rResult(
-                        call: call,
-                        message: "Initialize: Must provide a biometricSubtitle")
-                    return
-                }
-        implementation?.initialize(biometricSubtitle)
+        implementation?.initialize()
         retHandler.rResult(call: call)
+    }
+    
+    // MARK: - CheckBiometricAuth
+    
+    @objc func checkBiometricAuth(_ call: CAPPluginCall) {
+        guard let biometricSubtitle = call.options["biometricSubtitle"] as? String else {
+                            retHandler.rResult(
+                                call: call,
+                                message: "CheckBiometricAuth: Must provide a biometricSubtitle")
+                            return
+                        }
+        do {
+            let res = try implementation?.checkBiometricAuth(biometricSubtitle)
+            var bRes: Bool = false
+            if res == 1 {
+                bRes = true
+            }
+            retHandler.rResult(call: call, ret: bRes)
+            return
+        } catch CapacitorSQLiteError.failed(let message) {
+            let msg = "CheckBiometricAuth: \(message)"
+            retHandler.rResult(call: call, message: msg)
+            return
+        } catch let error {
+            retHandler.rResult(
+                call: call,
+                message: "CheckBiometricAuth: \(error)")
+            return
+        }
+
     }
 
     // MARK: - IsSecretStored

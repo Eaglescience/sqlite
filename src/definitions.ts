@@ -29,6 +29,13 @@ export interface CapacitorSQLitePlugin {
    */
   isSecretStored(): Promise<capSQLiteResult>;
   /**
+   * Check biometric authentication
+   *
+   * @return Promise<void>
+   * @since 3.0.0-beta.13
+   */
+  checkBiometricAuth(options: capBiometricAuthOptions): Promise<capSQLiteResult>;
+  /**
    * Reset passphrase with empty string
    *
    * @return Promise<void>
@@ -85,12 +92,12 @@ export interface CapacitorSQLitePlugin {
    */
   echo(options: capEchoOptions): Promise<capEchoResult>;
   /**
-   * Initialize biometric authentication
+   * Initialize
    *
    * @return Promise<void>
    * @since 0.0.1
    */
-  initialize(options: capInitializeOptions): Promise<void>;
+  initialize(): Promise<void>;
   /**
    * Open a SQLite database
    * @param options: capSQLiteOptions
@@ -315,7 +322,7 @@ export interface CapacitorSQLitePlugin {
   isNCDatabase(options: capNCOptions): Promise<capSQLiteResult>;
 }
 
-export interface capInitializeOptions {
+export interface capBiometricAuthOptions {
   /**
    * Title and subtitle for biometric auth
    */

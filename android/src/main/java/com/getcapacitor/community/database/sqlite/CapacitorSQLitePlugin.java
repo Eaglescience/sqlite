@@ -76,26 +76,19 @@ public class CapacitorSQLitePlugin extends Plugin {
 
     /**
      * Initialize Method
-     * Use biometric authentication
      *
      * @param call
      */
     @PluginMethod
     public void initialize(PluginCall call) {
         if (implementation != null) {
-            if (!call.getData().has("biometricTitle") || !call.getData().has("biometricSubtitle")) {
-                String msg = "Initialize: Must provide a title/subtitle";
-                rHandler.retResult(call, null, msg);
-                return;
-            }
             getActivity()
                     .runOnUiThread(
                             new Runnable() {
                                 @Override
                                 public void run() {
                                     try {
-                                        implementation.initialize(call.getString("biometricTitle"),
-                                                call.getString("biometricSubtitle"));
+                                        implementation.initialize();
                                         rHandler.retResult(call, null, null);
                                     } catch (Exception e) {
                                         call.reject(e.getMessage());
@@ -104,6 +97,36 @@ public class CapacitorSQLitePlugin extends Plugin {
                             });
         } else {
             call.reject(loadMessage);
+        }
+    }
+
+    /**
+     * CheckBiometricAuth
+     * Check for biometric authentication
+     *
+     * @param call
+     */
+    @PluginMethod
+    public void checkBiometricAuth(PluginCall call) {
+        if (implementation != null) {
+            if (!call.getData().has("biometricTitle") || !call.getData().has("biometricSubtitle")) {
+                String msg = "CheckBiometricAuth: Must provide a title/subtitle";
+                rHandler.retResult(call, null, msg);
+                return;
+            }
+            try {
+                Boolean res = implementation.checkBiometricAuth(call.getString("biometricTitle"),
+                        call.getString("biometricSubtitle"));
+                rHandler.retResult(call, res, null);
+                return;
+            } catch (Exception e) {
+                String msg = "CheckBiometricAuth: " + e.getMessage();
+                rHandler.retResult(call, null, msg);
+                return;
+            }
+        } else {
+            rHandler.retResult(call, null, loadMessage);
+            return;
         }
     }
 

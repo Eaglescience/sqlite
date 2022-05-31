@@ -67,47 +67,57 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - Initialize
 
-    @objc public func initialize(biometricSubtitle: String) throws {
-        if isEncryption {
-            if let kcPrefix: String = config.iosKeychainPrefix {
-                account = "\(kcPrefix)_\(oldAccount)"
-                prefixKeychain = kcPrefix
-            }
-            if let isBioAuth = config.biometricAuth {
-                if isBioAuth == 1 {
-                    bioIdAuth.biometricTitle = biometricSubtitle
-                    do {
-                        let bioType: BiometricType = try
-                            bioIdAuth.biometricType()
-                        if bioType == BiometricType.faceID ||
-                            bioType == BiometricType.touchID {
-                            isBiometricAuth = true
-                            isInit = true
-                            bioIdAuth.authenticateUser { [weak self] message in
-                                if let message = message {
-                                    self?.notifyBiometricEvents(name: .biometricEvent,
-                                                                result: false,
-                                                                msg: message)
-                                } else {
-                                    self?.notifyBiometricEvents(name: .biometricEvent,
-                                                                result: true,
-                                                                msg: "")
+    @objc public func initialize() throws {
+        isInit = true
+    }
+
+    // MARK: - CheckBiometricAuth
+
+    @objc public func checkBiometricAuth(biometricSubtitle: String)  throws -> NSNumber {
+        if isInit {
+            if isEncryption {
+                if let isBioAuth = config.biometricAuth {
+                                if isBioAuth == 1 {
+                                    bioIdAuth.biometricTitle = biometricSubtitle
+                                    do {
+                                        let bioType: BiometricType = try
+                                            bioIdAuth.biometricType()
+                                        if bioType == BiometricType.faceID ||
+                                            bioType == BiometricType.touchID {
+                                            isBiometricAuth = true
+                                            bioIdAuth.authenticateUser { [weak self] message in
+                                                if let message = message {
+                                                    self?.notifyBiometricEvents(name: .biometricEvent,
+                                                                                result: false,
+                                                                                msg: message)
+                                                    return 0;
+                                                } else {
+                                                    self?.notifyBiometricEvents(name: .biometricEvent,
+                                                                                result: true,
+                                                                                msg: "")
+                                                    return 1;
+                                                }
+                                            }
+                                        } else {
+                                            self.notifyBiometricEvents(name: .biometricEvent,
+                                                                       result: false,
+                                                                       msg: "Biometric not set-up")
+                                            return 0;
+                                        }
+                                    } catch BiometricIDAuthenticationError
+                                                .biometricType(let message) {
+                                        initMessage =  message
+                                    } catch let error {
+                                        initMessage = "Biometric authentication check failed :"
+                                        initMessage.append(" \(error.localizedDescription)")
+                                    }
                                 }
                             }
-                        } else {
-                            self.notifyBiometricEvents(name: .biometricEvent,
-                                                       result: false,
-                                                       msg: "Biometric not set-up")
-                        }
-                    } catch BiometricIDAuthenticationError
-                                .biometricType(let message) {
-                        initMessage =  message
-                    } catch let error {
-                        initMessage = "Init Plugin failed :"
-                        initMessage.append(" \(error.localizedDescription)")
-                    }
-                }
+            } else {
+                throw CapacitorSQLiteError.failed(message: "No Encryption set in capacitor.config")
             }
+        } else {
+            throw CapacitorSQLiteError.failed(message: initMessage)
         }
     }
 

@@ -11,6 +11,7 @@
 * [`initWebStore()`](#initwebstore)
 * [`saveToStore(...)`](#savetostore)
 * [`echo(...)`](#echo)
+* [`checkBiometricAuth(...)`](#checkbiometricauth)
 * [`isSecretStored()`](#issecretstored)
 * [`resetPassphrase()`](#resetpassphrase)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
@@ -93,6 +94,26 @@ Echo a value
 **Returns:** <code>Promise&lt;<a href="#capechoresult">capEchoResult</a>&gt;</code>
 
 **Since:** 2.9.0 refactor
+
+--------------------
+
+
+### checkBiometricAuth(...)
+
+```typescript
+checkBiometricAuth(biometricTitle: string, biometricSubtitle: string) => Promise<capSQLiteResult>
+```
+
+Check biometric authentication
+
+| Param                   | Type                |
+| ----------------------- | ------------------- |
+| **`biometricTitle`**    | <code>string</code> |
+| **`biometricSubtitle`** | <code>string</code> |
+
+**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
+
+**Since:** 3.0.0-beta.13
 
 --------------------
 

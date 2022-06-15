@@ -38,7 +38,7 @@ public class UtilsBiometric {
         biometricManager = BiometricManager.from(this.context);
         switch (
             biometricManager.canAuthenticate(
-                BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                BiometricManager.Authenticators.BIOMETRIC_STRONG
             )
         ) {
             case BiometricManager.BIOMETRIC_SUCCESS:
@@ -116,7 +116,7 @@ public class UtilsBiometric {
                 .setTitle(biometricTitle)
                 .setSubtitle(biometricSubTitle)
                 .setAllowedAuthenticators(
-                    BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                    BiometricManager.Authenticators.BIOMETRIC_STRONG
                 )
                 .build();
     }

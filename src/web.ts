@@ -30,6 +30,8 @@ import type {
   capSQLiteUrl,
   capSQLiteValues,
   capVersionResult,
+  capValidateSecretOptions,
+  capBiometricAuthOptions,
 } from './definitions';
 
 export class CapacitorSQLiteWeb
@@ -37,6 +39,10 @@ export class CapacitorSQLiteWeb
   implements CapacitorSQLitePlugin {
   private jeepSqliteElement: any = null;
   private isWebStoreOpen = false;
+
+  initialize(): Promise<void> {
+    return Promise.reject('no initialize in web')
+  }
 
   async initWebStore(): Promise<void> {
     await customElements.whenDefined('jeep-sqlite');
@@ -509,6 +515,20 @@ export class CapacitorSQLiteWeb
 
   async isNCDatabase(options: capNCOptions): Promise<capSQLiteResult> {
     console.log('isNCDatabase', options);
+    throw this.unimplemented('Not implemented on web.');
+  }
+
+  async checkBiometricAuth(options: capBiometricAuthOptions): Promise<void> {
+    console.log('checkBiometricAuth', options);
+    throw this.unimplemented('Not implemented on web.');
+  }
+
+  async resetPassphrase(): Promise<void> {
+    throw this.unimplemented('Not implemented on web.');
+  }
+
+  async validateEncryptionSecret(options: capValidateSecretOptions): Promise<capSQLiteResult> {
+    console.log('validateEncryptionSecret', options);
     throw this.unimplemented('Not implemented on web.');
   }
 }

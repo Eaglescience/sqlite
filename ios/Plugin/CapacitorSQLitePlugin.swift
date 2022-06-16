@@ -41,6 +41,50 @@ public class CapacitorSQLitePlugin: CAPPlugin {
         }
     }
 
+    // MARK: - Initialize
+
+    @objc func initialize(_ call: CAPPluginCall) {
+        do {
+            try implementation?.initialize()
+            retHandler.rResult(call: call)
+            return
+        } catch CapacitorSQLiteError.failed(let message) {
+            let msg = "Initialize: \(message)"
+            retHandler.rResult(call: call, message: msg)
+            return
+        } catch let error {
+            retHandler.rResult(
+                call: call,
+                message: "Initialize: \(error)")
+            return
+        }
+    }
+    
+    // MARK: - CheckBiometricAuth
+    
+    @objc func checkBiometricAuth(_ call: CAPPluginCall) {
+        guard let biometricSubtitle = call.options["biometricSubtitle"] as? String else {
+                            retHandler.rResult(
+                                call: call,
+                                message: "CheckBiometricAuth: Must provide a biometricSubtitle")
+                            return
+                        }
+        do {
+            try implementation?.checkBiometricAuth(biometricSubtitle: biometricSubtitle)
+            retHandler.rResult(call: call)
+            return
+        } catch CapacitorSQLiteError.failed(let message) {
+            let msg = "CheckBiometricAuth: \(message)"
+            retHandler.rResult(call: call, message: msg)
+            return
+        } catch let error {
+            retHandler.rResult(
+                call: call,
+                message: "CheckBiometricAuth: \(error)")
+            return
+        }
+    }
+
     // MARK: - IsSecretStored
 
     @objc func isSecretStored(_ call: CAPPluginCall) {
@@ -64,6 +108,25 @@ public class CapacitorSQLitePlugin: CAPPlugin {
         }
 
     }
+
+    // MARK: - ResetPassphrase
+
+        @objc func resetPassphrase(_ call: CAPPluginCall) {
+            do {
+                try implementation?.resetPassphrase()
+                retHandler.rResult(call: call)
+                return
+            } catch CapacitorSQLiteError.failed(let message) {
+                let msg = "ResetPassphrase: \(message)"
+                retHandler.rResult(call: call, message: msg)
+                return
+            } catch let error {
+                retHandler.rResult(
+                    call: call,
+                    message: "ResetPassphrase: \(error)")
+                return
+            }
+        }
 
     // MARK: - SetEncryptionSecret
 
@@ -90,6 +153,35 @@ public class CapacitorSQLitePlugin: CAPPlugin {
             return
         }
     }
+
+    // MARK: - ValidateEncryptionSecret
+     @objc func validateEncryptionSecret(_ call: CAPPluginCall) {
+
+            guard let passphrase = call.options["passphrase"] as? String else {
+                retHandler.rResult(
+                    call: call,
+                    message: "ValidateEncryptionSecret: Must provide a passphrase")
+                return
+            }
+            do {
+                let res = try implementation?.validateEncryptionSecret(passphrase: passphrase)
+                var bRes: Bool = false
+                if res == 1 {
+                    bRes = true
+                }
+                retHandler.rResult(call: call, ret: bRes)
+                return
+            } catch CapacitorSQLiteError.failed(let message) {
+                let msg = "ValidateEncryptionSecret: \(message)"
+                retHandler.rResult(call: call, message: msg)
+                return
+            } catch let error {
+                retHandler.rResult(
+                    call: call,
+                    message: "ValidateEncryptionSecret: \(error)")
+                return
+            }
+        }
 
     // MARK: - ChangeEncryptionSecret
 

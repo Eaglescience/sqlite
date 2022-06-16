@@ -111,6 +111,11 @@ public class UtilsSecret {
         }
     }
 
+    public void resetPassphrase() throws Exception {
+        // Store encrypted passphrase in sharedPreferences
+        setPassphrase("");
+    }
+
     public void setPassphrase(String passphrase) {
         sharedPreferences.edit().putString("secret", passphrase).apply();
     }

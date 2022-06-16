@@ -116,11 +116,15 @@ The plugin add a suffix "SQLite" and an extension ".db" to the database name giv
 * [`initWebStore()`](#initwebstore)
 * [`saveToStore(...)`](#savetostore)
 * [`isSecretStored()`](#issecretstored)
+* [`checkBiometricAuth(...)`](#checkbiometricauth)
+* [`resetPassphrase()`](#resetpassphrase)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
 * [`changeEncryptionSecret(...)`](#changeencryptionsecret)
+* [`validateEncryptionSecret(...)`](#validateencryptionsecret)
 * [`createConnection(...)`](#createconnection)
 * [`closeConnection(...)`](#closeconnection)
 * [`echo(...)`](#echo)
+* [`initialize()`](#initialize)
 * [`open(...)`](#open)
 * [`close(...)`](#close)
 * [`getUrl(...)`](#geturl)
@@ -210,6 +214,36 @@ Check if a passphrase exists in a secure store
 --------------------
 
 
+### checkBiometricAuth(...)
+
+```typescript
+checkBiometricAuth(options: capBiometricAuthOptions) => Promise<void>
+```
+
+Check biometric authentication
+
+| Param         | Type                                                                        | Description                                                    |
+| ------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **`options`** | <code><a href="#capbiometricauthoptions">capBiometricAuthOptions</a></code> | <a href="#capbiometricauthoptions">capBiometricAuthOptions</a> |
+
+**Since:** 3.0.0-beta.13
+
+--------------------
+
+
+### resetPassphrase()
+
+```typescript
+resetPassphrase() => Promise<void>
+```
+
+Reset passphrase with empty string
+
+**Since:** 3.0.0-beta.13
+
+--------------------
+
+
 ### setEncryptionSecret(...)
 
 ```typescript
@@ -244,6 +278,23 @@ in secure store
 | **`options`** | <code><a href="#capchangesecretoptions">capChangeSecretOptions</a></code> | <a href="#capchangesecretoptions">capChangeSecretOptions</a> |
 
 **Since:** 3.0.0-beta.13
+
+--------------------
+
+
+### validateEncryptionSecret(...)
+
+```typescript
+validateEncryptionSecret(options: capValidateSecretOptions) => Promise<capSQLiteResult>
+```
+
+Validate (match) the given secret with the stored secret.
+
+| Param         | Type                                                                          | Description            |
+| ------------- | ----------------------------------------------------------------------------- | ---------------------- |
+| **`options`** | <code><a href="#capvalidatesecretoptions">capValidateSecretOptions</a></code> | capVerifySecretOptions |
+
+**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 
 --------------------
 
@@ -295,6 +346,19 @@ Echo a given string
 | **`options`** | <code><a href="#capechooptions">capEchoOptions</a></code> | : <a href="#capechooptions">capEchoOptions</a> |
 
 **Returns:** <code>Promise&lt;<a href="#capechoresult">capEchoResult</a>&gt;</code>
+
+**Since:** 0.0.1
+
+--------------------
+
+
+### initialize()
+
+```typescript
+initialize() => Promise<void>
+```
+
+Initialize
 
 **Since:** 0.0.1
 
@@ -903,6 +967,14 @@ Check if a non conformed database exists without connection
 | **`result`** | <code>boolean</code> | result set to true when successful else false |
 
 
+#### capBiometricAuthOptions
+
+| Prop                    | Type                | Description                           |
+| ----------------------- | ------------------- | ------------------------------------- |
+| **`biometricTitle`**    | <code>string</code> | Title and subtitle for biometric auth |
+| **`biometricSubtitle`** | <code>string</code> |                                       |
+
+
 #### capSetSecretOptions
 
 | Prop             | Type                | Description                            |
@@ -916,6 +988,13 @@ Check if a non conformed database exists without connection
 | ------------------- | ------------------- | ------------------------------------------ |
 | **`passphrase`**    | <code>string</code> | The new passphrase for Encrypted Databases |
 | **`oldpassphrase`** | <code>string</code> | The old passphrase for Encrypted Databases |
+
+
+#### capValidateSecretOptions
+
+| Prop             | Type                | Description                            |
+| ---------------- | ------------------- | -------------------------------------- |
+| **`passphrase`** | <code>string</code> | The passphrase for Encrypted Databases |
 
 
 #### capConnectionOptions

@@ -75,6 +75,62 @@ public class CapacitorSQLitePlugin extends Plugin {
     }
 
     /**
+     * Initialize Method
+     *
+     * @param call
+     */
+    @PluginMethod
+    public void initialize(PluginCall call) {
+        if (implementation != null) {
+                                    try {
+                                        implementation.initialize();
+                                        rHandler.retResult(call, null, null);
+                                    } catch (Exception e) {
+                                        call.reject(e.getMessage());
+                                    }
+        } else {
+            call.reject(loadMessage);
+        }
+    }
+
+    /**
+     * CheckBiometricAuth
+     * Check for biometric authentication
+     *
+     * @param call
+     */
+    @PluginMethod
+    public void checkBiometricAuth(PluginCall call) {
+        if (implementation != null) {
+            if (!call.getData().has("biometricTitle") || !call.getData().has("biometricSubtitle")) {
+                String msg = "CheckBiometricAuth: Must provide a title/subtitle";
+                rHandler.retResult(call, null, msg);
+                return;
+            }
+            getActivity()
+                    .runOnUiThread(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        implementation.checkBiometricAuth(call.getString("biometricTitle"),
+                                                call.getString("biometricSubtitle"));
+                                        rHandler.retResult(call, null, null);
+                                        return;
+                                    } catch (Exception e) {
+                                        String msg = "CheckBiometricAuth: " + e.getMessage();
+                                        rHandler.retResult(call, null, msg);
+                                        return;
+                                    }
+                                }
+                            });
+        } else {
+            rHandler.retResult(call, null, loadMessage);
+            return;
+        }
+    }
+
+    /**
      * IsSecretStored
      * Check if a secret has been stored
      *
@@ -89,6 +145,30 @@ public class CapacitorSQLitePlugin extends Plugin {
                 return;
             } catch (Exception e) {
                 String msg = "IsSecretStored: " + e.getMessage();
+                rHandler.retResult(call, null, msg);
+                return;
+            }
+        } else {
+            rHandler.retResult(call, null, loadMessage);
+            return;
+        }
+    }
+
+    /**
+     * resetPassphrase
+     * Reset current passphrase to empty string
+     *
+     * @param call
+     */
+    @PluginMethod
+    public void resetPassphrase(PluginCall call) {
+        if (implementation != null) {
+            try {
+                implementation.resetPassphrase();
+                rHandler.retResult(call, null, null);
+                return;
+            } catch (Exception e) {
+                String msg = "resetPassphrase: " + e.getMessage();
                 rHandler.retResult(call, null, msg);
                 return;
             }
@@ -120,6 +200,37 @@ public class CapacitorSQLitePlugin extends Plugin {
                 return;
             } catch (Exception e) {
                 String msg = "SetEncryptionSecret: " + e.getMessage();
+                rHandler.retResult(call, null, msg);
+                return;
+            }
+        } else {
+            rHandler.retResult(call, null, loadMessage);
+            return;
+        }
+    }
+
+    /**
+     * ValidateEncryptionSecret
+     * validate a passphrase secret for a database
+     *
+     * @param call
+     */
+    @PluginMethod
+    public void validateEncryptionSecret(PluginCall call) {
+        String passphrase = null;
+        if (!call.getData().has("passphrase")) {
+            String msg = "validateEncryptionSecret: Must provide a passphrase";
+            rHandler.retResult(call, null, msg);
+            return;
+        }
+        passphrase = call.getString("passphrase");
+        if (implementation != null) {
+            try {
+                boolean result = implementation.validateEncryptionSecret(passphrase);
+                rHandler.retResult(call, result, null);
+                return;
+            } catch (Exception e) {
+                String msg = "validateEncryptionSecret: " + e.getMessage();
                 rHandler.retResult(call, null, msg);
                 return;
             }

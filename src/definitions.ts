@@ -29,6 +29,21 @@ export interface CapacitorSQLitePlugin {
    */
   isSecretStored(): Promise<capSQLiteResult>;
   /**
+   * Check biometric authentication
+   *
+   * @param options capBiometricAuthOptions
+   * @return Promise<void>
+   * @since 3.0.0-beta.13
+   */
+  checkBiometricAuth(options: capBiometricAuthOptions): Promise<void>;
+  /**
+   * Reset passphrase with empty string
+   *
+   * @return Promise<void>
+   * @since 3.0.0-beta.13
+   */
+  resetPassphrase(): Promise<void>;
+  /**
    * Store a passphrase in a secure store
    * Update the secret of previous encrypted databases with GlobalSQLite
    * !!! Only to be used once if you wish to encrypt database !!!
@@ -48,6 +63,12 @@ export interface CapacitorSQLitePlugin {
    * @since 3.0.0-beta.13
    */
   changeEncryptionSecret(options: capChangeSecretOptions): Promise<void>;
+
+  /**
+   * Validate (match) the given secret with the stored secret.
+   * @param options capVerifySecretOptions
+   */
+  validateEncryptionSecret(options: capValidateSecretOptions): Promise<capSQLiteResult>;
 
   /**
    * create a database connection
@@ -71,6 +92,13 @@ export interface CapacitorSQLitePlugin {
    * @since 0.0.1
    */
   echo(options: capEchoOptions): Promise<capEchoResult>;
+  /**
+   * Initialize
+   *
+   * @return Promise<void>
+   * @since 0.0.1
+   */
+  initialize(): Promise<void>;
   /**
    * Opens a SQLite database.
    * Attention: This re-opens a database if it's already open!
@@ -304,6 +332,13 @@ export interface CapacitorSQLitePlugin {
   isNCDatabase(options: capNCOptions): Promise<capSQLiteResult>;
 }
 
+export interface capBiometricAuthOptions {
+  /**
+   * Title and subtitle for biometric auth
+   */
+  biometricTitle?: string;
+  biometricSubtitle?: string;
+}
 export interface capSetSecretOptions {
   /**
    * The passphrase for Encrypted Databases
@@ -319,6 +354,12 @@ export interface capChangeSecretOptions {
    * The old passphrase for Encrypted Databases
    */
   oldpassphrase?: string;
+}
+export interface capValidateSecretOptions {
+  /**
+   * The passphrase for Encrypted Databases
+   */
+  passphrase?: string;
 }
 export interface capEchoOptions {
   /**
@@ -773,11 +814,26 @@ export interface ISQLiteConnection {
    */
   echo(value: string): Promise<capEchoResult>;
   /**
+   * Check biometric authentication
+   *
+   * @param biometricTitle
+   * @param biometricSubtitle
+   * @return Promise<capSQLiteResult>
+   * @since 3.0.0-beta.13
+   */
+  checkBiometricAuth(biometricTitle: string, biometricSubtitle: string): Promise<void>;
+  /**
    * Check if a secret is stored
    * @returns Promise<capSQLiteResult>
    * @since 3.0.0-beta.13
    */
   isSecretStored(): Promise<capSQLiteResult>;
+  /**
+   * Reset passphrase with empty string
+   * @returns Promise<void>
+   * @since 3.0.0-beta.13
+   */
+  resetPassphrase(): Promise<void>;
   /**
    * Set a passphrase in a secure store
    * @param passphrase
@@ -1010,10 +1066,30 @@ export class SQLiteConnection implements ISQLiteConnection {
       return Promise.reject(err);
     }
   }
+
+  async checkBiometricAuth(biometricTitle: string, biometricSubtitle: string): Promise<void> {
+    try {
+      await this.sqlite.checkBiometricAuth({biometricTitle: biometricTitle,
+        biometricSubtitle: biometricSubtitle});
+      return Promise.resolve();
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   async isSecretStored(): Promise<capSQLiteResult> {
     try {
       const res: capSQLiteResult = await this.sqlite.isSecretStored();
       return Promise.resolve(res);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async resetPassphrase(): Promise<void> {
+    try {
+      await this.sqlite.resetPassphrase();
+      return Promise.resolve();
     } catch (err) {
       return Promise.reject(err);
     }
@@ -1027,6 +1103,16 @@ export class SQLiteConnection implements ISQLiteConnection {
       return Promise.reject(err);
     }
   }
+
+  async validateEncryptionSecret(passphrase: string): Promise<capSQLiteResult> {
+    try {
+      const result = await this.sqlite.validateEncryptionSecret({ passphrase: passphrase });
+      return Promise.resolve(result);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   async changeEncryptionSecret(
     passphrase: string,
     oldpassphrase: string,

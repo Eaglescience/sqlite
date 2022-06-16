@@ -76,63 +76,7 @@ public class CapacitorSQLite {
         this.biometricAuth = this.config.getBiometricAuth();
         this.biometricTitle = this.config.getBiometricTitle();
         this.biometricSubTitle = this.config.getBiometricSubTitle();
-        try {
-            if (isEncryption) {
-                // create or retrieve masterkey from Android keystore
-                // it will be used to encrypt the passphrase for a database
-
-                if (biometricAuth) {
-                    biometricManager = BiometricManager.from(this.context);
-                    BiometricListener listener = new BiometricListener() {
-                        @Override
-                        public void onSuccess(BiometricPrompt.AuthenticationResult result) {
-                            try {
-                                KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
-                                ks.load(null);
-                                Enumeration<String> aliases = ks.aliases();
-                                if (aliases.hasMoreElements()) {
-                                    masterKeyAlias =
-                                        new MasterKey.Builder(context)
-                                            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                                            .setUserAuthenticationRequired(true, VALIDITY_DURATION)
-                                            .build();
-                                } else {
-                                    masterKeyAlias = new MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build();
-                                }
-                                setSharedPreferences();
-                                notifyBiometricEvent(true, null);
-                                return;
-                            } catch (Exception e) {
-                                String input = e.getMessage();
-                                Log.e("MY_APP_TAG", input);
-                                //                            Toast.makeText(context, input, Toast.LENGTH_LONG).show();
-                                notifyBiometricEvent(false, input);
-                            }
-                        }
-
-                        @Override
-                        public void onFailed() {
-                            String input = "Error in authenticating biometric";
-                            Log.e("MY_APP_TAG", input);
-                            //                        Toast.makeText(context, input, Toast.LENGTH_LONG).show();
-                            notifyBiometricEvent(false, input);
-                        }
-                    };
-                    UtilsBiometric uBiom = new UtilsBiometric(context, biometricManager, listener);
-                    if (uBiom.checkBiometricIsAvailable()) {
-                        uBiom.showBiometricDialog(this.biometricTitle, this.biometricSubTitle);
-                    } else {
-                        masterKeyAlias = new MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build();
-                        setSharedPreferences();
-                    }
-                } else {
-                    masterKeyAlias = new MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build();
-                    setSharedPreferences();
-                }
-            }
-        } catch (Exception e) {
-            throw new Exception(e.getMessage());
-        }
+        this.initialize();
     }
 
     private void notifyBiometricEvent(Boolean ret, String msg) {
@@ -163,6 +107,19 @@ public class CapacitorSQLite {
         }
     }
 
+    public void initialize() throws Exception {
+        try {
+            if (isEncryption) {
+                // create or retrieve masterkey from Android keystore
+                // it will be used to encrypt the passphrase for a database
+                masterKeyAlias = new MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build();
+                setSharedPreferences();
+            }
+        } catch (Exception e) {
+            throw new Exception(e.getMessage());
+        }
+    }
+
     /**
      * Echo
      * @param value
@@ -172,6 +129,49 @@ public class CapacitorSQLite {
         return value;
     }
 
+    /**
+     * CheckBiometricAuth
+     * @throws Exception
+     */
+    public void checkBiometricAuth(String biometricTitle, String biometricSubTitle) throws Exception {
+        if (isEncryption) {
+            if (biometricAuth) {
+                biometricManager = BiometricManager.from(this.context);
+                BiometricListener listener = new BiometricListener() {
+                    @Override
+                    public void onSuccess(BiometricPrompt.AuthenticationResult result) {
+                        try {
+                            notifyBiometricEvent(true, null);
+                        } catch (Exception e) {
+                            String input = e.getMessage();
+                            Log.e("MY_APP_TAG", input);
+                            //                            Toast.makeText(context, input, Toast.LENGTH_LONG).show();
+                            notifyBiometricEvent(false, input);
+                        }
+                    }
+
+                    @Override
+                    public void onFailed() {
+                        String input = "Error in authenticating biometric";
+                        Log.e("MY_APP_TAG", input);
+                        //                        Toast.makeText(context, input, Toast.LENGTH_LONG).show();
+                        notifyBiometricEvent(false, input);
+                    }
+                };
+                UtilsBiometric uBiom = new UtilsBiometric(context, biometricManager, listener);
+                if (uBiom.checkBiometricIsAvailable()) {
+                    uBiom.showBiometricDialog(biometricTitle, biometricSubTitle);
+                }
+            }
+        } else {
+            throw new Exception("No Encryption set in capacitor.config");
+        }
+    }
+
+    /**
+     * IsSecretStored
+     * @throws Exception
+     */
     public Boolean isSecretStored() throws Exception {
         Boolean ret = false;
         if (isEncryption) {
@@ -199,6 +199,43 @@ public class CapacitorSQLite {
                 closeAllConnections();
                 // set encryption secret
                 uSecret.setEncryptionSecret(passphrase);
+            } catch (Exception e) {
+                throw new Exception(e.getMessage());
+            }
+        } else {
+            throw new Exception("No Encryption set in capacitor.config");
+        }
+    }
+
+    /**
+     * ResetPassphrase
+     * @throws Exception
+     */
+    public void resetPassphrase() throws Exception {
+        if (isEncryption) {
+            try {
+                // close all connections
+                closeAllConnections();
+                // reset passphrase
+                uSecret.resetPassphrase();
+            } catch (Exception e) {
+                throw new Exception(e.getMessage());
+            }
+        } else {
+            throw new Exception("No Encryption set in capacitor.config");
+        }
+    }
+
+    /**
+     * ValidateEncryptionSecret
+     * @param passphrase
+     * @throws Exception
+     */
+    public boolean validateEncryptionSecret(String passphrase) throws Exception {
+        if (isEncryption) {
+            try {
+                // set encryption secret
+                return uSecret.getPassphrase().equals(passphrase);
             } catch (Exception e) {
                 throw new Exception(e.getMessage());
             }

@@ -11,7 +11,9 @@
 * [`initWebStore()`](#initwebstore)
 * [`saveToStore(...)`](#savetostore)
 * [`echo(...)`](#echo)
+* [`checkBiometricAuth(...)`](#checkbiometricauth)
 * [`isSecretStored()`](#issecretstored)
+* [`resetPassphrase()`](#resetpassphrase)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
 * [`changeEncryptionSecret(...)`](#changeencryptionsecret)
 * [`addUpgradeStatement(...)`](#addupgradestatement)
@@ -96,6 +98,24 @@ Echo a value
 --------------------
 
 
+### checkBiometricAuth(...)
+
+```typescript
+checkBiometricAuth(biometricTitle: string, biometricSubtitle: string) => Promise<void>
+```
+
+Check biometric authentication
+
+| Param                   | Type                |
+| ----------------------- | ------------------- |
+| **`biometricTitle`**    | <code>string</code> |
+| **`biometricSubtitle`** | <code>string</code> |
+
+**Since:** 3.0.0-beta.13
+
+--------------------
+
+
 ### isSecretStored()
 
 ```typescript
@@ -105,6 +125,19 @@ isSecretStored() => Promise<capSQLiteResult>
 Check if a secret is stored
 
 **Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
+
+**Since:** 3.0.0-beta.13
+
+--------------------
+
+
+### resetPassphrase()
+
+```typescript
+resetPassphrase() => Promise<void>
+```
+
+Reset passphrase with empty string
 
 **Since:** 3.0.0-beta.13
 

@@ -42,25 +42,25 @@ public class UtilsBiometric {
             )
         ) {
             case BiometricManager.BIOMETRIC_SUCCESS:
-                input = "App can authenticate using biometrics.";
-                Log.d("MY_APP_TAG", input);
-                Toast.makeText(context, input, Toast.LENGTH_LONG).show();
+//                input = "App can authenticate using biometrics.";
+//                Log.d("MY_APP_TAG", input);
+//                Toast.makeText(context, input, Toast.LENGTH_LONG).show();
                 ret = true;
                 break;
             case BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE:
-                input = "No biometric features available on this device.";
-                Log.e("MY_APP_TAG", input);
-                Toast.makeText(context, input, Toast.LENGTH_LONG).show();
+//                input = "No biometric features available on this device.";
+//                Log.e("MY_APP_TAG", input);
+//                Toast.makeText(context, input, Toast.LENGTH_LONG).show();
                 break;
             case BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE:
-                input = "App can authenticate using biometrics.";
-                Log.e("MY_APP_TAG", "Biometric features are currently unavailable.");
-                Toast.makeText(context, input, Toast.LENGTH_LONG).show();
+//                input = "App can authenticate using biometrics.";
+//                Log.e("MY_APP_TAG", "Biometric features are currently unavailable.");
+//                Toast.makeText(context, input, Toast.LENGTH_LONG).show();
                 break;
             case BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED:
-                input = "The user hasn't associated any biometric credentials with their account..";
-                Log.e("MY_APP_TAG", input);
-                Toast.makeText(context, input, Toast.LENGTH_LONG).show();
+//                input = "The user hasn't associated any biometric credentials with their account..";
+//                Log.e("MY_APP_TAG", input);
+//                Toast.makeText(context, input, Toast.LENGTH_LONG).show();
                 break;
         }
         return ret;
@@ -91,7 +91,7 @@ public class UtilsBiometric {
                     @Override
                     public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                         super.onAuthenticationError(errorCode, errString);
-                        Toast.makeText(context, "Authentication error: " + errString, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, "Authenticatie error", Toast.LENGTH_SHORT).show();
                         listener.onFailed();
                     }
 
@@ -104,8 +104,9 @@ public class UtilsBiometric {
                     @Override
                     public void onAuthenticationFailed() {
                         super.onAuthenticationFailed();
-                        Toast.makeText(context, "Authentication failed", Toast.LENGTH_SHORT).show();
-                        listener.onFailed();
+                        Toast.makeText(context, "Authenticatie mislukt", Toast.LENGTH_SHORT).show();
+                        // Do not send failure back to app to make sure user can try again
+//                        listener.onFailed();
                     }
                 }
             );
@@ -113,6 +114,7 @@ public class UtilsBiometric {
         // Create prompt dialog
         promptInfo =
             new BiometricPrompt.PromptInfo.Builder()
+                .setNegativeButtonText("Log in met pincode")
                 .setTitle(biometricTitle)
                 .setSubtitle(biometricSubTitle)
                 .setAllowedAuthenticators(

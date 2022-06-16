@@ -76,6 +76,7 @@ public class CapacitorSQLite {
         this.biometricAuth = this.config.getBiometricAuth();
         this.biometricTitle = this.config.getBiometricTitle();
         this.biometricSubTitle = this.config.getBiometricSubTitle();
+        this.initialize();
     }
 
     private void notifyBiometricEvent(Boolean ret, String msg) {

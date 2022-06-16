@@ -1,3 +1,75 @@
+# 3.5.1-2 (2022-05-31)
+
+### Bug Fixes
+
+ - Fix No error thrown when table does not exist for Electron issue#277
+
+# 3.5.1-1 (2022-05-16)
+
+### Chore
+
+ - Update to @capacitor/core 3.5.1
+ - Update to @capacitor/ios 3.5.1
+ - Update to @capacitor/android 3.5.1
+
+### Bug Fixes
+
+ - DELETE FROM does not work issue#271 (victorybiz)
+ 
+# 3.5.0 (2022-05-09)
+
+### Chore
+
+ - Update to @capacitor/core 3.5.0
+ - Update to @capacitor/ios 3.5.0
+ - Update to @capacitor/android 3.5.0
+
+# 3.4.3 (2022-05-07)
+
+### Added Features
+
+ - Add a link `angular-sqlite-synchronize-app` application demonstrating the import/export JSON object including the new delete feature with the `sql_deleted` column to synchronize local database with remote server database.
+
+ - Modify Contributor list format
+
+### Bug Fixes
+
+ - fix(executeTransaction): fix definition issue#267
+
+# 3.4.3-3 (2022-05-04)
+
+### Added Features (Electron)
+
+ - add a `sql_deleted` column on table to manage the synchronization of deleted records. Before the record was deleted when a `DELETE FROM` command was issued, now the record is updated with the `sql_deleted`set to 1 
+ - add `deleteExportedRows`method to physically delete the records having the `sql_deleted` set to 1, after a successful synchronization with a remote server database
+
+# 3.4.3-2 (2022-04-21)
+
+### Added Features Only (Web, iOS, Android)
+
+ - add a `sql_deleted` column on table to manage the synchronization of deleted records. Before the record was deleted when a `DELETE FROM` command was issued, now the record is updated with the `sql_deleted`set to 1 
+ - add `deleteExportedRows`method to physically delete the records having the `sql_deleted` set to 1, after a successful synchronization with a remote server database
+ - add a [solidjs-vite-sqlite-app](https://github.com/jepiqueau/capacitor-solid-sqlite) application to demonstrate the use of this new feature
+ 
+### Bug Fixes
+
+ - Delete use case with Local to Server Sync issue#237
+
+
+# 3.4.3-1 (2022-04-21)
+
+### Chore
+
+ - Update to @capacitor/core 3.4.3
+ - Update to @capacitor/ios 3.4.3
+ - Update to @capacitor/android 3.4.3
+
+### Bug Fixes
+
+ - Fix Upgrade Database Version, another table already exists issue#263
+ - Improve Electron code visibility
+ - Upgrade TypeORM-Usage.md
+
 # 3.4.2 (2022-04-08)
 
 ### Bug Fixes

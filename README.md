@@ -16,7 +16,7 @@
   <a href="https://www.npmjs.com/package/@capacitor-community/sqlite"><img src="https://img.shields.io/npm/dw/@capacitor-community/sqlite?style=flat-square" /></a>
   <a href="https://www.npmjs.com/package/@capacitor-community/sqlite"><img src="https://img.shields.io/npm/v/@capacitor-community/sqlite?style=flat-square" /></a>
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-<a href="#contributors-"><img src="https://img.shields.io/badge/all%20contributors-14-orange?style=flat-square" /></a>
+<a href="#contributors-"><img src="https://img.shields.io/badge/all%20contributors-17-orange?style=flat-square" /></a>
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 </p>
 
@@ -27,6 +27,38 @@
 | Quéau Jean Pierre | [jepiqueau](https://github.com/jepiqueau) |        |
 
 ## CAPACITOR 3 (Master)
+
+🚨 Release 3.4.3-3 all platforms ->> 🚨
+
+The main change is related to the delete table's rows when a synchronization table exists as well as a last_mofidied table's column, allowing for database synchronization of the local database with a remote server database.
+
+- All existing triggers to YOUR_TABLE_NAME_trigger_last_modified must be modified as follows
+  ```
+  CREATE TRIGGER YOUR_TABLE_NAME_trigger_last_modified
+    AFTER UPDATE ON YOUR_TABLE_NAME
+    FOR EACH ROW WHEN NEW.last_modified < OLD.last_modified
+    BEGIN
+        UPDATE YOUR_TABLE_NAME SET last_modified= (strftime('%s', 'now')) WHERE id=OLD.id;
+    END;
+  ```
+- an new column `sql_deleted` must be added to each of your tables as
+  ```
+  sql_deleted BOOLEAN DEFAULT 0 CHECK (sql_deleted IN (0, 1))
+  ```
+  This column will be autommatically set to 1 when you will use a `DELETE FROM ...` sql statement in the `execute`, `run` or `executeSet` methods.
+
+- In the JSON object that you provide to `importFromJson`, all the deleted rows in your remote server database's tables must have the `sql_deleted` column set to 1. This will indicate to the import process to physically delete the corresponding rows in your local database. All the others rows must have the `sql_deleted` column set to 0. 
+
+- In the JSON object outputs by the `exportToJson`, all the deleted rows in your local database have got the `sql_deleted` column set to 1 to help in your synchronization management process with the remote server database. A system `last_exported_date` is automatically saved in the synchronization table at the start of the export process flow.
+
+- On successful completion of your synchronization management process with the remote server database, you must 
+  - Set a new synchronization date (as `(new Date()).toISOString()`) with the `setSyncDate` method.
+  - Execute the `deleteExportedRows` method which physically deletes all table's rows having 1 as value for the `sql_deleted` column prior to the `last_exported_date` in your local database.
+
+An example of using this new feature is given in [solidjs-vite-sqlite-app](https://github.com/jepiqueau/capacitor-solid-sqlite). It has been used to test the validity of the implementation.
+
+
+🚨 Release 3.4.3-3 <<- 🚨
 
 🚨 Release 3.4.2-4 ->> 🚨
 !!!! DO NOT USE IT !!!!
@@ -297,6 +329,7 @@ No configuration required for this plugin
 | deleteDatabase              | ✅      | ✅  | ✅        | ✅  |
 | importFromJson              | ✅      | ✅  | ✅        | ✅  |
 | exportToJson                | ✅      | ✅  | ✅        | ✅  |
+| deleteExportedRows          | ✅      | ✅  | ✅        | ✅  | NEW in 3.4.3-2
 | createSyncTable             | ✅      | ✅  | ✅        | ✅  |
 | setSyncDate                 | ✅      | ✅  | ✅        | ✅  |
 | getSyncDate                 | ✅      | ✅  | ✅        | ✅  |
@@ -367,6 +400,8 @@ No configuration required for this plugin
 
 - [angular-sqlite-app-starter](https://github.com/jepiqueau/angular-sqlite-app-starter)
 
+- [angular-sqlite-synchronize-app](https://github.com/jepiqueau/angular-sqlite-synchronize-app)
+
 ### Ionic/React
 
 - [react-sqlite-app-starter](https://github.com/jepiqueau/react-sqlite-app-starter)
@@ -412,24 +447,26 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable -->
-<table>
-  <tr>
-    <td align="center"><a href="https://github.com/jepiqueau"><img src="https://avatars3.githubusercontent.com/u/16580653?v=4" width="100px;" alt=""/><br /><sub><b>Jean Pierre Quéau</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=jepiqueau" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/paulantoine2"><img src="https://avatars0.githubusercontent.com/u/22882943?s=64&v=4" width="100px;" alt=""/><br /><sub><b>Paul Antoine</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=paulantoine2" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/karyfars"><img src="https://avatars2.githubusercontent.com/u/303016?s=60&u=1ce232ae3c22eac7b0b4778e46fe079939c39b40&v=4" width="100px;" alt=""/><br /><sub><b>Karyfars</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=karyfars" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/chriswep"><img src="https://avatars2.githubusercontent.com/u/1055809?s=400&u=e555940f143da8be255743028d6838cb5c020b44&v=4" width="100px;" alt=""/><br /><sub><b>Chriswep</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=chriswep" title="Documentation">📖</a></td>    
-    <td align="center"><a href="https://github.com/nirajhinge"><img src="https://avatars.githubusercontent.com/u/54309996?v=4" width="100px;" alt=""/><br /><sub><b>Nirajhinge</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=nirajhinge" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/digaus"><img src="https://avatars.githubusercontent.com/u/15358538?v=4" width="100px;" alt=""/><br /><sub><b>Dirk Gausmann</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=digaus" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/IT-MikeS"><img src="https://avatars.githubusercontent.com/u/20338451?v=4" width="100px;" alt=""/><br /><sub><b>Mike Summerfeldt</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=IT-MikeS" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/peakcool"><img src="https://avatars.githubusercontent.com/u/14804014?v=4" width="100px;" alt=""/><br /><sub><b>Peakcool</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=peakcool" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/gion-andri"><img src="https://avatars.githubusercontent.com/u/540998?v=4" width="100px;" alt=""/><br /><sub><b>Gion-Andri Cantieni</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=gion-andri" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/robingenz"><img src="https://avatars.githubusercontent.com/u/13857929?v=4" width="100px;" alt=""/><br /><sub><b>Robin Genz</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=robingenz" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/dewald-els"><img src="https://avatars.githubusercontent.com/u/10051247?v=4" width="100px;" alt=""/><br /><sub><b>Dewald Els</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=dewald-els" title="Code">💻</a></td>
-    <td align="center"><a href="https://github.com/joewoodhouse"><img src="https://avatars.githubusercontent.com/u/3168135?v=4" width="100px;" alt=""/><br /><sub><b>Joe Woodhouse</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=joewoodhouse" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/ptasheq"><img src="https://avatars.githubusercontent.com/u/3025106?v=4" width="100px;" alt=""/><br /><sub><b>Ptasheq</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=ptasheq" title="Documentation">📖</a></td>  
-    <td align="center"><a href="https://github.com/victorybiz"><img src="https://avatars.githubusercontent.com/u/8276466?v=4" width="100px;" alt=""/><br /><sub><b>Victory Osayi</b></sub></a><br /><a href="https://github.com/capacitor-community/sqlite/commits?author=victorybiz" title="Code">💻</a></td>
-  </tr>
-</table>
+<p align="center">
+  <a href="https://github.com/jepiqueau"><img src="https://github.com/jepiqueau.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/paulantoine2"><img src="https://github.com/paulantoine2.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/karyfars"><img src="https://github.com/karyfars.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/chriswep"><img src="https://github.com/chriswep.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/nirajhinge"><img src="https://github.com/nirajhinge.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/digaus"><img src="https://github.com/digaus.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/IT-MikeS"><img src="https://github.com/IT-MikeS.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/peakcool"><img src="https://github.com/peakcool.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/gion-andri"><img src="https://github.com/gion-andri.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/robingenz"><img src="https://github.com/robingenz.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/dewald-els"><img src="https://github.com/dewald-els.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/joewoodhouse"><img src="https://github.com/joewoodhouse.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/ptasheq"><img src="https://github.com/ptasheq.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/victorybiz"><img src="https://github.com/victorybiz.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/tobiasmuecksch"><img src="https://github.com/tobiasmuecksch.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/dragermrb"><img src="https://github.com/dragermrb.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/iamcco"><img src="https://github.com/iamcco.png?size=100" width="50" height="50" /></a>
+  <a href="https://github.com/eltociear"><img src="https://github.com/eltociear.png?size=100" width="50" height="50" /></a>
+</p>
 
 <!-- markdownlint-enable -->
 <!-- prettier-ignore-end -->

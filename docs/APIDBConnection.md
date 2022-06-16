@@ -26,6 +26,7 @@
 * [`setSyncDate(...)`](#setsyncdate)
 * [`getSyncDate()`](#getsyncdate)
 * [`exportToJson(...)`](#exporttojson)
+* [`deleteExportedRows()`](#deleteexportedrows)
 * [`executeTransaction(...)`](#executetransaction)
 * [Interfaces](#interfaces)
 
@@ -333,15 +334,28 @@ Export the given database to a JSON Object
 --------------------
 
 
+### deleteExportedRows()
+
+```typescript
+deleteExportedRows() => Promise<void>
+```
+
+Remove rows with sql_deleted = 1 after an export
+
+**Since:** 3.4.3-2
+
+--------------------
+
+
 ### executeTransaction(...)
 
 ```typescript
-executeTransaction(txn: [{ statement: string; values?: any[]; }]) => Promise<void>
+executeTransaction(txn: { statement: string; values?: any[]; }[]) => Promise<void>
 ```
 
 | Param     | Type                                                  |
 | --------- | ----------------------------------------------------- |
-| **`txn`** | <code>[{ statement: string; values?: any[]; }]</code> |
+| **`txn`** | <code>{ statement: string; values?: any[]; }[]</code> |
 
 **Since:** 3.4.0
 

@@ -48,30 +48,12 @@ public class ImportFromJson {
         db.getDb().setVersion(version);
 
         if (jsonSQL.getMode().equals("full")) {
-            // Set Foreign Key OFF
-            try {
-                db.getDb().setForeignKeyConstraintsEnabled(false);
-            } catch (IllegalStateException e) {
-                String msg = "CreateDatabaseSchema: ";
-                msg += "setForeignKeyConstraintsEnabled failed ";
-                msg += e.getMessage();
-                throw new Exception(msg);
-            }
             try {
                 _uDrop.dropAll(db);
             } catch (Exception e) {
                 String msg = "CreateDatabaseSchema: " + e.getMessage();
                 throw new Exception(msg);
             }
-        }
-        // Set Foreign Key ON
-        try {
-            db.getDb().setForeignKeyConstraintsEnabled(true);
-        } catch (IllegalStateException e) {
-            String msg = "CreateDatabaseSchema: ";
-            msg += "setForeignKeyConstraintsEnabled failed ";
-            msg += e.getMessage();
-            throw new Exception(msg);
         }
         try {
             changes = createSchema(db, jsonSQL);
@@ -177,6 +159,7 @@ public class ImportFromJson {
         ArrayList<String> statements = new ArrayList<>();
         String stmt = new StringBuilder("CREATE TABLE IF NOT EXISTS ").append(tableName).append(" (").toString();
         Boolean isLastModified = false;
+        Boolean isSqlDeleted = false;
         for (int j = 0; j < mSchema.size(); j++) {
             if (j == mSchema.size() - 1) {
                 if (mSchema.get(j).getColumn() != null) {
@@ -184,6 +167,9 @@ public class ImportFromJson {
                         new StringBuilder(stmt).append(mSchema.get(j).getColumn()).append(" ").append(mSchema.get(j).getValue()).toString();
                     if (mSchema.get(j).getColumn().equals("last_modified")) {
                         isLastModified = true;
+                    }
+                    if (mSchema.get(j).getColumn().equals("sql_deleted")) {
+                        isSqlDeleted = true;
                     }
                 } else if (mSchema.get(j).getForeignkey() != null) {
                     stmt =
@@ -214,6 +200,9 @@ public class ImportFromJson {
                     if (mSchema.get(j).getColumn().equals("last_modified")) {
                         isLastModified = true;
                     }
+                    if (mSchema.get(j).getColumn().equals("sql_deleted")) {
+                        isSqlDeleted = true;
+                    }
                 } else if (mSchema.get(j).getForeignkey() != null) {
                     stmt =
                         new StringBuilder(stmt)
@@ -237,7 +226,7 @@ public class ImportFromJson {
         }
         stmt = new StringBuilder(stmt).append(");").toString();
         statements.add(stmt);
-        if (isLastModified) {
+        if (isLastModified && isSqlDeleted) {
             // create trigger last_modified associated with the table
             String stmtTrigger = new StringBuilder("CREATE TRIGGER IF NOT EXISTS ")
                 .append(tableName)
@@ -406,7 +395,10 @@ public class ImportFromJson {
                 isRun = checkUpdate(mDb, stmt, row, tableName, tColNames, tColTypes);
                 if (isRun) {
                     // load the values
-                    long lastId = mDb.prepareSQL(stmt, row);
+                    if (stmt.substring(0, 6).toUpperCase().equals("DELETE")) {
+                        row = new ArrayList<>();
+                    }
+                    long lastId = mDb.prepareSQL(stmt, row, true);
                     if (lastId < 0) {
                         throw new Exception("CreateTableData: lastId < 0");
                     }
@@ -549,23 +541,41 @@ public class ImportFromJson {
                     .append(");")
                     .toString();
         } else {
-            // Update
-            String setString = _uJson.setNameForUpdate(tColNames);
-            if (setString.length() == 0) {
-                throw new Exception(msg + j + "setString is empty");
+            Boolean isUpdate = true;
+            Integer idxDelete = tColNames.indexOf("sql_deleted");
+            if (idxDelete >= 0) {
+                if (row.get(idxDelete).equals(1)) {
+                    // Delete
+                    isUpdate = false;
+                    stmt =
+                        new StringBuilder("DELETE FROM ")
+                            .append(tableName)
+                            .append(" WHERE ")
+                            .append(tColNames.get(0))
+                            .append(" = ")
+                            .append(row.get(0))
+                            .toString();
+                }
             }
-            Object key = tColNames.get(0);
-            StringBuilder sbQuery = new StringBuilder("UPDATE ")
-                .append(tableName)
-                .append(" SET ")
-                .append(setString)
-                .append(" WHERE ")
-                .append(tColNames.get(0))
-                .append(" = ");
+            if (isUpdate) {
+                // Update
+                String setString = _uJson.setNameForUpdate(tColNames);
+                if (setString.length() == 0) {
+                    throw new Exception(msg + j + "setString is empty");
+                }
+                Object key = tColNames.get(0);
+                StringBuilder sbQuery = new StringBuilder("UPDATE ")
+                    .append(tableName)
+                    .append(" SET ")
+                    .append(setString)
+                    .append(" WHERE ")
+                    .append(tColNames.get(0))
+                    .append(" = ");
 
-            if (key instanceof Integer) sbQuery.append(row.get(0)).append(";");
-            if (key instanceof String) sbQuery.append("'").append(row.get(0)).append("';");
-            stmt = sbQuery.toString();
+                if (key instanceof Integer) sbQuery.append(row.get(0)).append(";");
+                if (key instanceof String) sbQuery.append("'").append(row.get(0)).append("';");
+                stmt = sbQuery.toString();
+            }
         }
         return stmt;
     }

@@ -24,6 +24,7 @@ enum DatabaseError: Error {
     case exportToJson(message: String)
     case importFromJson(message: String)
     case getTableNames(message: String)
+    case deleteExportedRows(message: String)
 }
 // swiftlint:disable file_length
 // swiftlint:disable type_body_length
@@ -360,7 +361,8 @@ class Database {
         // Execute the query
         do {
             lastId = try UtilsSQLCipher
-                .prepareSQL(mDB: self, sql: sql, values: values)
+                .prepareSQL(mDB: self, sql: sql, values: values,
+                            fromJson: false)
         } catch UtilsSQLCipherError.prepareSQL(let message) {
             if transaction {
                 do {
@@ -465,7 +467,8 @@ class Database {
             if !isExists {
                 // check if there are tables with last_modified column
                 let isLastModified: Bool = try UtilsJson.isLastModified(mDB: self)
-                if isLastModified {
+                let isSqlDeleted: Bool = try UtilsJson.isSqlDeleted(mDB: self)
+                if isLastModified && isSqlDeleted {
                     let date = Date()
                     let syncTime: Int = Int(date.timeIntervalSince1970)
                     var stmt: String = "CREATE TABLE IF NOT EXISTS "
@@ -483,6 +486,8 @@ class Database {
                 retObj = 0
             }
         } catch UtilsJsonError.isLastModified(let message) {
+            throw DatabaseError.createSyncTable(message: message)
+        } catch UtilsJsonError.isSqlDeleted(let message) {
             throw DatabaseError.createSyncTable(message: message)
         } catch UtilsJsonError.tableNotExists(let message) {
             throw DatabaseError.createSyncTable(message: message)
@@ -551,15 +556,33 @@ class Database {
         var retObj: [String: Any] = [:]
 
         do {
+            let date = Date()
+            let syncTime: Int = Int(date.timeIntervalSince1970)
+            // Set the last exported date
+            try ExportToJson.setLastExportDate(mDB: self, sTime: syncTime)
+            // Launch the export process
             let data: [String: Any] = [
                 "dbName": dbName, "encrypted": self.encrypted,
                 "expMode": expMode, "version": dbVersion]
             retObj = try ExportToJson
                 .createExportObject(mDB: self, data: data)
+        } catch ExportToJsonError.setLastExportDate(let message) {
+            throw DatabaseError.exportToJson(message: message)
         } catch ExportToJsonError.createExportObject(let message) {
             throw DatabaseError.exportToJson(message: message)
         }
         return retObj
+    }
+
+    // MARK: - DeleteExportedRows()
+
+    func deleteExportedRows() throws {
+
+        do {
+            try ExportToJson.delExportedRows(mDB: self)
+        } catch ExportToJsonError.delExportedRows(let message) {
+            throw DatabaseError.exportToJson(message: message)
+        }
     }
 
     // MARK: - ImportFromJson
@@ -570,6 +593,10 @@ class Database {
 
         // Create the Database Schema
         do {
+            // PRAGMA foreign_keys = OFF;
+            try UtilsSQLCipher
+                .setForeignKeyConstraintsEnabled(mDB: self,
+                                                 toggle: false)
             if jsonSQLite.tables.count > 0 {
                 changes = try ImportFromJson
                     .createDatabaseSchema(mDB: self,
@@ -587,6 +614,10 @@ class Database {
                         .createViews(mDB: self, views: mViews)
                 }
             }
+            // PRAGMA foreign_keys = ON;
+            try UtilsSQLCipher
+                .setForeignKeyConstraintsEnabled(mDB: self,
+                                                 toggle: true)
 
             return ["changes": changes]
         } catch ImportFromJsonError.createDatabaseSchema(let message) {

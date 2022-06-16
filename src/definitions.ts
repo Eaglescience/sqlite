@@ -100,7 +100,9 @@ export interface CapacitorSQLitePlugin {
    */
   initialize(): Promise<void>;
   /**
-   * Open a SQLite database
+   * Opens a SQLite database.
+   * Attention: This re-opens a database if it's already open!
+   *
    * @param options: capSQLiteOptions
    * @returns Promise<void>
    * @since 0.0.1
@@ -232,6 +234,13 @@ export interface CapacitorSQLitePlugin {
    * @since 2.9.0
    */
   getSyncDate(options: capSQLiteOptions): Promise<capSQLiteSyncDate>;
+  /**
+   * Remove rows with sql_deleted = 1 after an export
+   * @param options
+   * @returns Promise<void>
+   * @since 3.4.3-2
+   */
+  deleteExportedRows(options: capSQLiteOptions): Promise<void>;
   /**
    * Add the upgrade Statement for database version upgrading
    * @param options: capSQLiteUpgradeOptions
@@ -1508,13 +1517,20 @@ export interface ISQLiteDBConnection {
    */
   exportToJson(mode: string): Promise<capSQLiteJson>;
   /**
+   * Remove rows with sql_deleted = 1 after an export
+   * @returns Promise<void>
+   * @since 3.4.3-2
+   */
+  deleteExportedRows(): Promise<void>;
+
+  /**
    *
    * @param txn
    * @returns Promise<void>
    * @since 3.4.0
    */
   executeTransaction(
-    txn: [{ statement: string; values?: any[] }],
+    txn: { statement: string; values?: any[] }[],
   ): Promise<void>;
 }
 /**
@@ -1752,8 +1768,17 @@ export class SQLiteDBConnection implements ISQLiteDBConnection {
       return Promise.reject(err);
     }
   }
+  async deleteExportedRows(): Promise<void> {
+    try {
+      await this.sqlite.deleteExportedRows({ database: this.dbName });
+      return Promise.resolve();
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   async executeTransaction(
-    txn: [{ statement: string; values?: any[] }],
+    txn: { statement: string; values?: any[] }[],
   ): Promise<void> {
     try {
       const ret = await this.sqlite.execute({
@@ -1808,21 +1833,3 @@ export class SQLiteDBConnection implements ISQLiteDBConnection {
     }
   }
 }
-
-/*
-if (Object.keys(res.values[0]).includes("ios_columns")) {
-  const columnList = res.values[0]["ios_columns"];
-  console.log(`in DBconnection query ${columnList}`);
-  const iosRes = []
-  for (let i = 1; i < res.values.length; i++) {
-    const rowJson = res.values[i];
-    const resRowJson = {};
-    for (const item of columnList) {
-      resRowJson[item] = rowJson[item];
-    }
-    console.log(`resRowJson: ${JSON.stringify(resRowJson)}`)
-    iosRes.push(resRowJson);
-  }
-  console.log(`iosRes ${JSON.stringify(iosRes)}`);
-}
-*/

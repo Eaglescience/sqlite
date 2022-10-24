@@ -57,23 +57,25 @@ class BiometricIDAuthentication {
         } else {
             let message: String
 
-            switch evaluateError {
-            case LAError.authenticationFailed?:
-                message = "There was a problem verifying your identity."
-            case LAError.userCancel?:
-                message = "You pressed cancel."
-            case LAError.userFallback?:
-                message = "You pressed password."
-            case LAError.biometryNotAvailable?:
-                message = "Face ID/Touch ID is not available."
-            case LAError.biometryNotEnrolled?:
-                message = "Face ID/Touch ID is not set up."
-            case LAError.biometryLockout?:
-                message = "Face ID/Touch ID is locked."
-            default:
-                message = "Face ID/Touch ID may not be configured"
+            if (evaluateError != nil) {
+                switch evaluateError {
+                case LAError.authenticationFailed?:
+                    message = "There was a problem verifying your identity."
+                case LAError.userCancel?:
+                    message = "You pressed cancel."
+                case LAError.userFallback?:
+                    message = "You pressed password."
+                case LAError.biometryNotAvailable?:
+                    message = "Face ID/Touch ID is not available."
+                case LAError.biometryNotEnrolled?:
+                    message = "Face ID/Touch ID is not set up."
+                case LAError.biometryLockout?:
+                    message = "Face ID/Touch ID is locked."
+                default:
+                    message = "Unknown error with Face ID/Touch ID."
+                }
+                completion(message)
             }
-            completion(message)
         }
         }
     }

@@ -109,6 +109,30 @@ public class CapacitorSQLitePlugin: CAPPlugin {
 
     }
 
+        // MARK: - checkBiometricIsAvailable
+
+        @objc func checkBiometricIsAvailable(_ call: CAPPluginCall) {
+            do {
+                let res = try implementation?.checkBiometricIsAvailable()
+                var bRes: Bool = false
+                if res == 1 {
+                    bRes = true
+                }
+                retHandler.rResult(call: call, ret: bRes)
+                return
+            } catch CapacitorSQLiteError.failed(let message) {
+                let msg = "checkBiometricIsAvailable: \(message)"
+                retHandler.rResult(call: call, message: msg)
+                return
+            } catch let error {
+                retHandler.rResult(
+                    call: call,
+                    message: "checkBiometricIsAvailable: \(error)")
+                return
+            }
+
+        }
+
     // MARK: - ResetPassphrase
 
         @objc func resetPassphrase(_ call: CAPPluginCall) {

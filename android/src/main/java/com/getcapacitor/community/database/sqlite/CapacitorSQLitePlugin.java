@@ -155,6 +155,30 @@ public class CapacitorSQLitePlugin extends Plugin {
     }
 
     /**
+     * checkBiometricIsAvailable
+     * Check if bio auth is available
+     *
+     * @param call
+     */
+    @PluginMethod
+    public void checkBiometricIsAvailable(PluginCall call) {
+        if (implementation != null) {
+            try {
+                Boolean res = implementation.checkBiometricIsAvailable();
+                rHandler.retResult(call, res, null);
+                return;
+            } catch (Exception e) {
+                String msg = "checkBiometricIsAvailable: " + e.getMessage();
+                rHandler.retResult(call, null, msg);
+                return;
+            }
+        } else {
+            rHandler.retResult(call, null, loadMessage);
+            return;
+        }
+    }
+
+    /**
      * resetPassphrase
      * Reset current passphrase to empty string
      *

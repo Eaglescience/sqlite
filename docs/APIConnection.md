@@ -13,6 +13,7 @@
 * [`echo(...)`](#echo)
 * [`checkBiometricAuth(...)`](#checkbiometricauth)
 * [`isSecretStored()`](#issecretstored)
+* [`checkBiometricIsAvailable()`](#checkbiometricisavailable)
 * [`resetPassphrase()`](#resetpassphrase)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
 * [`changeEncryptionSecret(...)`](#changeencryptionsecret)
@@ -123,6 +124,21 @@ isSecretStored() => Promise<capSQLiteResult>
 ```
 
 Check if a secret is stored
+
+**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
+
+**Since:** 3.0.0-beta.13
+
+--------------------
+
+
+### checkBiometricIsAvailable()
+
+```typescript
+checkBiometricIsAvailable() => Promise<capSQLiteResult>
+```
+
+Check if bio is available
 
 **Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 

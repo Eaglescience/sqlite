@@ -116,6 +116,7 @@ The plugin add a suffix "SQLite" and an extension ".db" to the database name giv
 * [`initWebStore()`](#initwebstore)
 * [`saveToStore(...)`](#savetostore)
 * [`isSecretStored()`](#issecretstored)
+* [`checkBiometricIsAvailable()`](#checkbiometricisavailable)
 * [`checkBiometricAuth(...)`](#checkbiometricauth)
 * [`resetPassphrase()`](#resetpassphrase)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
@@ -206,6 +207,21 @@ isSecretStored() => Promise<capSQLiteResult>
 ```
 
 Check if a passphrase exists in a secure store
+
+**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
+
+**Since:** 3.0.0-beta.13
+
+--------------------
+
+
+### checkBiometricIsAvailable()
+
+```typescript
+checkBiometricIsAvailable() => Promise<capSQLiteResult>
+```
+
+Check if bio is available
 
 **Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 

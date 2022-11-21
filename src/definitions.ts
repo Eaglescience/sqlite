@@ -28,6 +28,15 @@ export interface CapacitorSQLitePlugin {
    * @since 3.0.0-beta.13
    */
   isSecretStored(): Promise<capSQLiteResult>;
+
+  /**
+   * Check if bio is available
+   *
+   * @return Promise<capSQLiteResult>
+   * @since 3.0.0-beta.13
+   */
+  checkBiometricIsAvailable(): Promise<capSQLiteResult>
+
   /**
    * Check biometric authentication
    *
@@ -828,6 +837,15 @@ export interface ISQLiteConnection {
    * @since 3.0.0-beta.13
    */
   isSecretStored(): Promise<capSQLiteResult>;
+
+  /**
+   * Check if bio is available
+   *
+   * @return Promise<capSQLiteResult>
+   * @since 3.0.0-beta.13
+   */
+  checkBiometricIsAvailable(): Promise<capSQLiteResult>
+
   /**
    * Reset passphrase with empty string
    * @returns Promise<void>
@@ -1080,6 +1098,15 @@ export class SQLiteConnection implements ISQLiteConnection {
   async isSecretStored(): Promise<capSQLiteResult> {
     try {
       const res: capSQLiteResult = await this.sqlite.isSecretStored();
+      return Promise.resolve(res);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async checkBiometricIsAvailable(): Promise<capSQLiteResult> {
+    try {
+      const res: capSQLiteResult = await this.sqlite.checkBiometricIsAvailable();
       return Promise.resolve(res);
     } catch (err) {
       return Promise.reject(err);

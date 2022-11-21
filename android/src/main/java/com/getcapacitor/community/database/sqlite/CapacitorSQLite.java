@@ -188,6 +188,24 @@ public class CapacitorSQLite {
     }
 
     /**
+     * checkBiometricIsAvailable
+     * @throws Exception
+     */
+    public Boolean checkBiometricIsAvailable() throws Exception {
+        Boolean ret = false;
+        if (isEncryption) {
+            try {
+                UtilsBiometric uBiom = new UtilsBiometric(context, biometricManager, listener);
+                return uBiom.checkBiometricIsAvailable();
+            } catch (Exception e) {
+                throw new Exception(e.getMessage());
+            }
+        } else {
+            throw new Exception("No Encryption set in capacitor.config");
+        }
+    }
+
+    /**
      * SetEncryptionSecret
      * @param passphrase
      * @throws Exception

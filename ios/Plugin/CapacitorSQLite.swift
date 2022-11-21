@@ -149,6 +149,20 @@ enum CapacitorSQLiteError: Error {
         }
     }
 
+    // MARK: - IsBiometricsAvailable
+
+    @objc public func checkBiometricIsAvailable()  throws -> NSNumber {
+
+              let bioType: BiometricType = try bioIdAuth.biometricType()
+              if bioType == BiometricType.faceID ||
+                  bioType == BiometricType.touchID {
+                  return 1
+                  } else {
+                    return 0
+                  }
+
+     }
+
     // MARK: - ResetPassphrase
 
         @objc public func resetPassphrase()  throws {

@@ -140,6 +140,11 @@ export class CapacitorSQLiteWeb
     }
   }
 
+  checkBiometricIsAvailable(): Promise<capSQLiteResult> {
+    return Promise.resolve({result: false});
+  }
+
+
   async checkConnectionsConsistency(
     options: capAllConnectionsOptions,
   ): Promise<capSQLiteResult> {

@@ -44,10 +44,11 @@ class Database {
     let uUpg: UtilsUpgrade = UtilsUpgrade()
     var readOnly: Bool = false
     var ncDB: Bool = false
+    var key: String = ""
 
     // MARK: - Init
     init(databaseLocation: String, databaseName: String, encrypted: Bool,
-         isEncryption: Bool, account: String, mode: String, version: Int,
+         isEncryption: Bool, account: String, mode: String, version: Int, key: String,
          vUpgDict: [Int: [String: Any]] = [:]) throws {
         self.dbVersion = version
         self.encrypted = encrypted
@@ -57,6 +58,8 @@ class Database {
         self.mode = mode
         self.vUpgDict = vUpgDict
         self.databaseLocation = databaseLocation
+        self.key = key
+
         if databaseName.contains("/")  &&
             databaseName.suffix(9) != "SQLite.db" {
             self.readOnly = true
@@ -98,8 +101,8 @@ class Database {
     // swiftlint:disable cyclomatic_complexity
     // swiftlint:disable function_body_length
     func open () throws {
-        var password: String = ""
-        if isEncryption && encrypted && (mode == "secret" || mode == "encryption") {
+        var password: String = self.key
+        if isEncryption && encrypted && key == "" && (mode == "secret" || mode == "encryption") {
             password = UtilsSecret.getPassphrase(account: account)
         }
         if mode == "encryption" {

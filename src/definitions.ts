@@ -893,6 +893,7 @@ export interface ISQLiteConnection {
    * @param encrypted
    * @param mode
    * @param version
+   * @param key
    * @returns Promise<SQLiteDBConnection>
    * @since 2.9.0 refactor
    */
@@ -901,6 +902,7 @@ export interface ISQLiteConnection {
     encrypted: boolean,
     mode: string,
     version: number,
+    key: string
   ): Promise<SQLiteDBConnection>;
   /**
    * Check if a connection exists
@@ -1183,6 +1185,7 @@ export class SQLiteConnection implements ISQLiteConnection {
     encrypted: boolean,
     mode: string,
     version: number,
+    key: string
   ): Promise<SQLiteDBConnection> {
     try {
       if (database.endsWith('.db')) database = database.slice(0, -3);
@@ -1191,6 +1194,7 @@ export class SQLiteConnection implements ISQLiteConnection {
         encrypted,
         mode,
         version,
+        key
       });
       const conn = new SQLiteDBConnection(database, this.sqlite);
       this._connectionDict.set(database, conn);

@@ -64,6 +64,7 @@ public class Database {
     private ImportFromJson fromJson = new ImportFromJson();
     private ExportToJson toJson = new ExportToJson();
     private Boolean ncDB = false;
+    private String _key = "";
 
     public Database(
         Context context,
@@ -72,6 +73,7 @@ public class Database {
         String mode,
         int version,
         Boolean isEncryption,
+        String key,
         Dictionary<Integer, JSONObject> vUpgObject,
         SharedPreferences sharedPreferences
     ) {
@@ -83,6 +85,7 @@ public class Database {
         this._version = version;
         this._vUpgObject = vUpgObject;
         this._sharedPreferences = sharedPreferences;
+        this._key = key;
         if (dbName.contains("/") && dbName.endsWith("SQLite.db")) {
             this.ncDB = true;
             this._file = new File(dbName);
@@ -152,9 +155,12 @@ public class Database {
     public void open() throws Exception {
         int curVersion;
 
-        String password = _uSecret != null && _encrypted && (_mode.equals("secret") || _mode.equals("encryption"))
+        String password = this._key;
+
+        password = _uSecret != null && _encrypted && password == "" && (_mode.equals("secret") || _mode.equals("encryption"))
             ? _uSecret.getPassphrase()
             : "";
+
         if (_mode.equals("encryption")) {
             if (_isEncryption) {
                 try {

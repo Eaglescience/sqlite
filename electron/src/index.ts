@@ -48,6 +48,11 @@ export class CapacitorSQLite implements CapacitorSQLitePlugin {
   private fileUtil: UtilsFile = new UtilsFile();
   private jsonUtil: UtilsJson = new UtilsJson();
 
+  checkBiometricIsAvailable(): Promise<capSQLiteResult> {
+    return Promise.resolve({result: false});
+  }
+
+
   async createConnection(options: capConnectionOptions): Promise<void> {
     const optionKeys = Object.keys(options);
 

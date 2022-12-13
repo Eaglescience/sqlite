@@ -356,7 +356,7 @@ enum CapacitorSQLiteError: Error {
                     databaseLocation: databaseLocation,
                     databaseName: databasePath,
                     encrypted: false, isEncryption: isEncryption, account: account,
-                    mode: "no-encryption", version: version,
+                    mode: "no-encryption", version: version, key: "",
                     vUpgDict: [:])
                 dbDict[databasePath] = mDb
                 return
@@ -396,6 +396,7 @@ enum CapacitorSQLiteError: Error {
                                        encrypted: Bool,
                                        mode: String,
                                        version: Int,
+                                       key: String,
                                        vUpgDict: [Int: [String: Any]]) throws {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
@@ -414,7 +415,7 @@ enum CapacitorSQLiteError: Error {
                     databaseLocation: databaseLocation,
                     databaseName: "\(mDbName)SQLite.db",
                     encrypted: encrypted, isEncryption: isEncryption, account: account,
-                    mode: mode, version: version,
+                    mode: mode, version: version, key: key
                     vUpgDict: vUpgDict)
                 dbDict[mDbName] = mDb
                 return
@@ -841,51 +842,15 @@ enum CapacitorSQLiteError: Error {
     @objc func deleteDatabase(_ dbName: String) throws {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
-                let msg = "Connection to \(mDbName) not available"
-                throw CapacitorSQLiteError.failed(message: msg)
-            }
 
             do {
-                if !mDb.isDBOpen() {
-                    // check the state of the DB
-                    let state: State = UtilsSQLCipher.getDatabaseState(databaseLocation: databaseLocation, databaseName: "\(mDbName)SQLite.db", account: account)
-                    if !isEncryption &&  (state.rawValue == "ENCRYPTEDGLOBALSECRET" ||
-                                            state.rawValue == "ENCRYPTEDSECRET") {
-                        var msg = "Cannot delete an Encrypted database with "
-                        msg += "No Encryption set in capacitor.config"
-                        throw CapacitorSQLiteError.failed(message: msg)
-                    } else if state.rawValue == "UNENCRYPTED" {
-                        do {
-                            try UtilsSQLCipher.deleteDB(databaseLocation: databaseLocation,
-                                                        databaseName: "\(mDbName)SQLite.db")
-                            return
-                        } catch UtilsSQLCipherError.deleteDB(let message ) {
-                            throw CapacitorSQLiteError.failed(message: message)
-                        }
-
-                    } else {
-                        try mDb.open()
-                    }
-                }
-                let res: Bool = try mDb.deleteDB(databaseName: "\(mDbName)SQLite.db")
-                if res {
-                    return
-                } else {
-                    let msg: String = "deleteDB return false"
-                    throw CapacitorSQLiteError.failed(message: msg)
-                }
-            } catch DatabaseError.open(let message) {
-                throw CapacitorSQLiteError.failed(message: message)
-            } catch DatabaseError.deleteDB(let message) {
-                throw CapacitorSQLiteError.failed(message: message)
-            } catch let error {
-                let msg: String = "\(error)"
-                throw CapacitorSQLiteError.failed(message: msg)
+                  try UtilsSQLCipher.deleteDB(databaseLocation: databaseLocation,
+                                              databaseName: "\(mDbName)SQLite.db")
+                  return
+              } catch UtilsSQLCipherError.deleteDB(let message ) {
+                  throw CapacitorSQLiteError.failed(message: message)
+              }
             }
-        } else {
-            throw CapacitorSQLiteError.failed(message: initMessage)
-        }
     }
 
     // MARK: - isJsonValid
@@ -944,7 +909,7 @@ enum CapacitorSQLiteError: Error {
                     mDb = try Database(
                         databaseLocation: databaseLocation, databaseName: dbName,
                         encrypted: encrypted, isEncryption: isEncryption, account: account,
-                        mode: inMode, version: version, vUpgDict: [:])
+                        mode: inMode, version: version, key: "", vUpgDict: [:])
                     if overwrite && mode == "full" {
                         let isExists = UtilsFile
                             .isFileExist(databaseLocation: databaseLocation,

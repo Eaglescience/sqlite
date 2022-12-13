@@ -195,7 +195,17 @@ public class CapacitorSQLite {
         Boolean ret = false;
         if (isEncryption) {
             try {
-                UtilsBiometric uBiom = new UtilsBiometric(context, biometricManager, listener);
+                UtilsBiometric uBiom = new UtilsBiometric(context, biometricManager, new BiometricListener() {
+                    @Override
+                    public void onSuccess(BiometricPrompt.AuthenticationResult result) {
+
+                    }
+
+                    @Override
+                    public void onFailed() {
+
+                    }
+                });
                 return uBiom.checkBiometricIsAvailable();
             } catch (Exception e) {
                 throw new Exception(e.getMessage());
@@ -336,7 +346,7 @@ public class CapacitorSQLite {
      * @param vUpgObject
      * @throws Exception
      */
-    public void createConnection(String dbName, boolean encrypted, String mode, int version, Dictionary<Integer, JSONObject> vUpgObject)
+    public void createConnection(String dbName, boolean encrypted, String mode, int version, String key, Dictionary<Integer, JSONObject> vUpgObject)
         throws Exception {
         dbName = getDatabaseName(dbName);
         // check if connection already exists
@@ -356,6 +366,7 @@ public class CapacitorSQLite {
                 mode,
                 version,
                 isEncryption,
+                key,
                 vUpgObject,
                 sharedPreferences
             );
@@ -901,16 +912,14 @@ public class CapacitorSQLite {
     public void deleteDatabase(String dbName) throws Exception {
         dbName = getDatabaseName(dbName);
         Database db = dbDict.get(dbName);
-        if (db != null) {
-            try {
-                db.deleteDB(dbName + "SQLite.db");
-                return;
-            } catch (Exception e) {
-                throw new Exception(e.getMessage());
+        File file = this.context.getDatabasePath(dbName);
+        UtilsFile uFile = new UtilsFile();
+
+        if (file.exists()) {
+            Boolean ret = uFile.deleteDatabase(context, dbName);
+            if (!ret) {
+                throw new Exception("Failed in deleteDB ");
             }
-        } else {
-            String msg = "No available connection for database " + dbName;
-            throw new Exception(msg);
         }
     }
 

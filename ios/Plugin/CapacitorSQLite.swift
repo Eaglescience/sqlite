@@ -415,7 +415,7 @@ enum CapacitorSQLiteError: Error {
                     databaseLocation: databaseLocation,
                     databaseName: "\(mDbName)SQLite.db",
                     encrypted: encrypted, isEncryption: isEncryption, account: account,
-                    mode: mode, version: version, key: key
+                    mode: mode, version: version, key: key,
                     vUpgDict: vUpgDict)
                 dbDict[mDbName] = mDb
                 return

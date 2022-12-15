@@ -219,7 +219,7 @@ Add the upgrade Statement for database version upgrading
 ### createConnection(...)
 
 ```typescript
-createConnection(database: string, encrypted: boolean, mode: string, version: number) => Promise<SQLiteDBConnection>
+createConnection(database: string, encrypted: boolean, mode: string, version: number, key: string) => Promise<SQLiteDBConnection>
 ```
 
 Create a connection to a database
@@ -230,6 +230,7 @@ Create a connection to a database
 | **`encrypted`** | <code>boolean</code> |
 | **`mode`**      | <code>string</code>  |
 | **`version`**   | <code>number</code>  |
+| **`key`**       | <code>string</code>  |
 
 **Returns:** <code>Promise&lt;SQLiteDBConnection&gt;</code>
 

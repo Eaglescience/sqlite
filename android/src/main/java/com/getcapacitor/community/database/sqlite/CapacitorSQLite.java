@@ -408,6 +408,7 @@ public class CapacitorSQLite {
                 "no-encryption",
                 version,
                 isEncryption,
+                "",
                 new Hashtable<>(),
                 sharedPreferences
             );
@@ -1040,7 +1041,7 @@ public class CapacitorSQLite {
             if (encrypted) {
                 inMode = "secret";
             }
-            Database db = new Database(context, dbName, encrypted, inMode, dbVersion, isEncryption, new Hashtable<>(), sharedPreferences);
+            Database db = new Database(context, dbName, encrypted, inMode, dbVersion, isEncryption, "", new Hashtable<>(), sharedPreferences);
             if (overwrite && mode.equals("full")) {
                 Boolean isExists = this.uFile.isFileExists(context, dbName);
                 if (isExists) {

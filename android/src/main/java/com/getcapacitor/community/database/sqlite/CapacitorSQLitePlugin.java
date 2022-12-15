@@ -394,6 +394,7 @@ public class CapacitorSQLitePlugin extends Plugin {
         }
         dbName = call.getString("database");
         dbVersion = call.getInt("version", 1);
+        String key = call.getString("key");
 
         boolean encrypted = call.getBoolean("encrypted", false);
         if (encrypted) {
@@ -413,7 +414,7 @@ public class CapacitorSQLitePlugin extends Plugin {
         Dictionary<Integer, JSONObject> upgDict = versionUpgrades.get(dbName);
         if (implementation != null) {
             try {
-                implementation.createConnection(dbName, encrypted, inMode, dbVersion, upgDict);
+                implementation.createConnection(dbName, encrypted, inMode, dbVersion, key, upgDict);
                 rHandler.retResult(call, null, null);
                 return;
             } catch (Exception e) {

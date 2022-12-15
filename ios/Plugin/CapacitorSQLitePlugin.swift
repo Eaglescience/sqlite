@@ -251,6 +251,8 @@ public class CapacitorSQLitePlugin: CAPPlugin {
         let version: Int = call.getInt("version") ?? 1
         let encrypted: Bool = call.getBool("encrypted") ?? false
         let inMode: String = call.getString("mode") ?? "no-encryption"
+        let key: String = call.getString("key") ?? ""
+
         if encrypted && !modeList.contains(inMode) {
             var msg: String = "CreateConnection: inMode "
             msg.append("must be in['encryption',")
@@ -266,7 +268,7 @@ public class CapacitorSQLitePlugin: CAPPlugin {
             try implementation?.createConnection(dbName,
                                                  encrypted: encrypted,
                                                  mode: inMode,
-                                                 version: version,
+                                                 version: version, key: key,
                                                  vUpgDict: upgDict)
             retHandler.rResult(call: call)
             return

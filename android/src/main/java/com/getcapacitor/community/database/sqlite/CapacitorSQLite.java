@@ -911,8 +911,8 @@ public class CapacitorSQLite {
     }
 
     public void deleteDatabase(String dbName) throws Exception {
-        dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        dbName = getDatabaseName(dbName) + "SQLite.db";
+
         File file = this.context.getDatabasePath(dbName);
         UtilsFile uFile = new UtilsFile();
 

@@ -157,9 +157,9 @@ public class Database {
 
         String password = this._key;
 
-        password = _uSecret != null && _encrypted && password == "" && (_mode.equals("secret") || _mode.equals("encryption"))
-            ? _uSecret.getPassphrase()
-            : "";
+        if ( _uSecret != null && _encrypted && password.equals("") && (_mode.equals("secret") || _mode.equals("encryption"))) {
+            password = _uSecret.getPassphrase();
+        }
 
         if (_mode.equals("encryption")) {
             if (_isEncryption) {

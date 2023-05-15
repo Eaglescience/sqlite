@@ -399,6 +399,8 @@ enum CapacitorSQLiteError: Error {
                                        key: String,
                                        vUpgDict: [Int: [String: Any]]) throws {
         if isInit {
+            try self.closeAllConnections()
+
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
             // check if the connection already exists
             let conn = dbDict[mDbName]

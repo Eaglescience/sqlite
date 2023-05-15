@@ -350,7 +350,11 @@ public class CapacitorSQLite {
         throws Exception {
         dbName = getDatabaseName(dbName);
         // check if connection already exists
+
+        closeAllConnections();
+
         Database conn = dbDict.get(dbName);
+
         if (conn != null) {
             String msg = "Connection " + dbName + " already exists";
             throw new Exception(msg);

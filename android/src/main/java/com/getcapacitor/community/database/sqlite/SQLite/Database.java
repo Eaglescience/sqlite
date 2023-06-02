@@ -8,28 +8,24 @@ import static android.database.Cursor.FIELD_TYPE_STRING;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.text.TextUtils;
 import android.util.Log;
 import androidx.sqlite.db.SimpleSQLiteQuery;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 import androidx.sqlite.db.SupportSQLiteStatement;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
-import com.getcapacitor.community.database.sqlite.SQLite.GlobalSQLite;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.ExportToJson;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.ImportFromJson;
-import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.JsonIndex;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.JsonSQLite;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.UtilsJson;
-import com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLCipher;
-import com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLite;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Dictionary;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.List;
 import net.sqlcipher.Cursor;
 import net.sqlcipher.database.SQLiteDatabase;
@@ -42,27 +38,28 @@ public class Database {
 
     private static final String TAG = Database.class.getName();
     private Boolean _isOpen = false;
-    private String _dbName;
-    private Context _context;
-    private String _mode;
+    private final String _dbName;
+    private final Context _context;
+    private final String _mode;
     private String _secret;
-    private Boolean _encrypted;
-    private Boolean _isEncryption;
-    private SharedPreferences _sharedPreferences;
-    private File _file;
-    private int _version;
-    private GlobalSQLite _globVar;
+    private final Boolean _encrypted;
+    private final Boolean _isEncryption;
+    private final SharedPreferences _sharedPreferences;
+    private final Boolean _readOnly;
+    private final File _file;
+    private final int _version;
+    private final GlobalSQLite _globVar;
     private SupportSQLiteDatabase _db = null;
-    private UtilsSQLite _uSqlite;
-    private UtilsSQLCipher _uCipher;
-    private UtilsFile _uFile;
-    private UtilsJson _uJson;
-    private UtilsUpgrade _uUpg;
-    private UtilsDrop _uDrop;
-    private UtilsSecret _uSecret;
+    private final UtilsSQLite _uSqlite;
+    private final UtilsSQLCipher _uCipher;
+    private final UtilsFile _uFile;
+    private final UtilsJson _uJson;
+    private final UtilsUpgrade _uUpg;
+    private final UtilsDrop _uDrop;
+    private final UtilsSecret _uSecret;
     private Dictionary<Integer, JSONObject> _vUpgObject = new Hashtable<>();
-    private ImportFromJson fromJson = new ImportFromJson();
-    private ExportToJson toJson = new ExportToJson();
+    private final ImportFromJson fromJson = new ImportFromJson();
+    private final ExportToJson toJson = new ExportToJson();
     private Boolean ncDB = false;
     private String _key = "";
 
@@ -75,7 +72,8 @@ public class Database {
         Boolean isEncryption,
         String key,
         Dictionary<Integer, JSONObject> vUpgObject,
-        SharedPreferences sharedPreferences
+        SharedPreferences sharedPreferences,
+        Boolean readonly
     ) {
         this._context = context;
         this._dbName = dbName;
@@ -85,6 +83,7 @@ public class Database {
         this._version = version;
         this._vUpgObject = vUpgObject;
         this._sharedPreferences = sharedPreferences;
+        this._readOnly = readonly;
         this._key = key;
         if (dbName.contains("/") && dbName.endsWith("SQLite.db")) {
             this.ncDB = true;
@@ -175,10 +174,10 @@ public class Database {
             }
         }
         try {
-            if (!isNCDB()) {
+            if (!isNCDB() && !this._readOnly) {
                 _db = SQLiteDatabase.openOrCreateDatabase(_file, password, null);
             } else {
-                _db = SQLiteDatabase.openDatabase(String.valueOf(_file), "", null, SQLiteDatabase.OPEN_READONLY);
+                _db = SQLiteDatabase.openDatabase(String.valueOf(_file), password, null, SQLiteDatabase.OPEN_READONLY);
             }
             if (_db != null) {
                 if (_db.isOpen()) {
@@ -192,63 +191,53 @@ public class Database {
                         _db = null;
                         throw new Exception(msg);
                     }
-                    if (!isNCDB()) {
+                    if (isNCDB() || this._readOnly) {
+                        _isOpen = true;
+                        return;
+                    }
+                    try {
+                        curVersion = _db.getVersion(); // default 0
+                    } catch (IllegalStateException e) {
+                        String msg = "Failed in get/setVersion " + e.getMessage();
+                        Log.v(TAG, msg);
+                        close();
+                        _db = null;
+                        throw new Exception(msg);
+                    } catch (SQLiteException e) {
+                        String msg = "Failed in setVersion " + e.getMessage();
+                        Log.v(TAG, msg);
+                        close();
+                        _db = null;
+                        throw new Exception(msg);
+                    }
+                    if (_version > curVersion && _vUpgObject != null && _vUpgObject.size() > 0) {
+                        //                           if (_vUpgObject != null && _vUpgObject.size() > 0) {
                         try {
-                            curVersion = _db.getVersion();
-                            if (curVersion == 0) {
-                                _db.setVersion(1);
-                                curVersion = _db.getVersion();
-                            }
-                        } catch (IllegalStateException e) {
-                            String msg = "Failed in get/setVersion " + e.getMessage();
-                            Log.v(TAG, msg);
-                            close();
-                            _db = null;
-                            throw new Exception(msg);
-                        } catch (SQLiteException e) {
-                            String msg = "Failed in setVersion " + e.getMessage();
-                            Log.v(TAG, msg);
-                            close();
-                            _db = null;
-                            throw new Exception(msg);
-                        }
-                        if (_version > curVersion && _vUpgObject != null && _vUpgObject.size() > 0) {
-                            //                           if (_vUpgObject != null && _vUpgObject.size() > 0) {
-                            try {
-                                _uUpg.onUpgrade(this, _context, _dbName, _vUpgObject, curVersion, _version);
-                                boolean ret = _uFile.deleteBackupDB(_context, _dbName);
-                                if (!ret) {
-                                    String msg = "Failed in deleteBackupDB backup-\" + _dbName";
-                                    Log.v(TAG, msg);
-                                    close();
-                                    _db = null;
-                                    throw new Exception(msg);
-                                }
-                            } catch (Exception e) {
-                                // restore DB
-                                boolean ret = _uFile.restoreDatabase(_context, _dbName);
-                                String msg = e.getMessage();
-                                if (!ret) msg += "Failed in restoreDatabase " + _dbName;
+                            this._uFile.copyFile(_context, _dbName, "backup-" + _dbName);
+
+                            _uUpg.onUpgrade(this, _vUpgObject, curVersion, _version);
+
+                            boolean ret = _uFile.deleteBackupDB(_context, _dbName);
+                            if (!ret) {
+                                String msg = "Failed in deleteBackupDB backup-\" + _dbName";
                                 Log.v(TAG, msg);
                                 close();
                                 _db = null;
                                 throw new Exception(msg);
                             }
-                            /*                           } else {
-                                try {
-                                    _db.setVersion(_version);
-                                } catch (Exception e) {
-                                    String msg = e.getMessage() + "Failed in setting version " + _version;
-                                    close();
-                                    _db = null;
-                                    throw new Exception(msg);
-                                }
-                            }
-  */
+                        } catch (Exception e) {
+                            // restore DB
+                            boolean ret = _uFile.restoreDatabase(_context, _dbName);
+                            String msg = e.getMessage();
+                            if (!ret) msg += "Failed in restoreDatabase " + _dbName;
+                            Log.v(TAG, msg);
+                            close();
+                            _db = null;
+                            throw new Exception(msg);
                         }
-                        _isOpen = true;
-                        return;
                     }
+                    _isOpen = true;
+                    return;
                 } else {
                     _isOpen = false;
                     _db = null;
@@ -310,11 +299,7 @@ public class Database {
      * @return the existence of the database on folder
      */
     public boolean isDBExists() {
-        if (_file.exists()) {
-            return true;
-        } else {
-            return false;
-        }
+        return _file.exists();
     }
 
     /**
@@ -335,7 +320,7 @@ public class Database {
                 for (String cmd : statements) {
                     if (!cmd.endsWith(";")) cmd += ";";
                     String nCmd = cmd;
-                    String trimCmd = nCmd.trim().substring(0, 11).toUpperCase();
+                    String trimCmd = nCmd.trim().substring(0, Math.min(nCmd.trim().length(), 11)).toUpperCase();
                     if (trimCmd.equals("DELETE FROM") && nCmd.toLowerCase().contains("WHERE".toLowerCase())) {
                         String whereStmt = nCmd.trim();
                         nCmd = deleteSQL(this, whereStmt, new ArrayList<Object>());
@@ -528,7 +513,7 @@ public class Database {
                 // Replace DELETE by UPDATE and set sql_deleted to 1
                 Integer wIdx = statement.toUpperCase().indexOf("WHERE");
                 String preStmt = statement.substring(0, wIdx - 1);
-                String clauseStmt = statement.substring(wIdx, statement.length());
+                String clauseStmt = statement.substring(wIdx);
                 String tableName = preStmt.substring(("DELETE FROM").length()).trim();
                 sqlStmt = "UPDATE " + tableName + " SET sql_deleted = 1 " + clauseStmt;
                 // Find REFERENCES if any and update the sql_deleted column
@@ -551,27 +536,59 @@ public class Database {
      */
     public void findReferencesAndUpdate(Database mDB, String tableName, String whereStmt, ArrayList<Object> values) throws Exception {
         try {
-            JSArray references = getReferences(mDB, tableName);
-            for (int j = 0; j < references.length(); j++) {
+            ArrayList<String> references = getReferences(mDB, tableName);
+            if (references.size() == 0) {
+                return;
+            }
+            String tableNameWithRefs = references.get(references.size() - 1);
+            references.remove(references.size() - 1);
+            for (String refe : references) {
                 // get the tableName of the reference
-                String refTable = getReferenceTableName(references.getJSONObject(j).getString("sql"));
+                String refTable = getReferenceTableName(refe);
                 if (refTable.length() <= 0) {
                     continue;
                 }
-                // get the columnName
-                String colName = getReferenceColumnName(references.getJSONObject(j).getString("sql"));
-                if (refTable.length() <= 0) {
+                // get the withRefsNames
+                String[] withRefsNames = getWithRefsColumnName(refe);
+                if (withRefsNames.length <= 0) {
+                    continue;
+                }
+                // get the columnNames
+                String[] colNames = getReferencedColumnName(refe);
+                if (colNames.length <= 0) {
                     continue;
                 }
                 // update the where clause
-                String uWhereStmt = updateWhere(whereStmt, colName);
+                String uWhereStmt = updateWhere(whereStmt, withRefsNames, colNames);
 
                 if (uWhereStmt.length() <= 0) {
                     continue;
                 }
+                String updTableName = tableNameWithRefs;
+                String[] updColNames = colNames;
+                if (tableNameWithRefs.equals(tableName)) {
+                    updTableName = refTable;
+                    updColNames = withRefsNames;
+                }
                 //update sql_deleted for this reference
-                String stmt = "UPDATE " + refTable + " SET sql_deleted = 1 " + uWhereStmt;
-                long lastId = prepareSQL(stmt, values, false);
+                String stmt = "UPDATE " + updTableName + " SET sql_deleted = 1 " + uWhereStmt;
+                ArrayList<Object> selValues = new ArrayList<Object>();
+                if (values != null && values.size() > 0) {
+                    String[] arrVal = whereStmt.split("\\?");
+                    if (arrVal[arrVal.length - 1].equals(";")) {
+                        Arrays.copyOf(arrVal, arrVal.length - 1);
+                    }
+                    for (int j = 0; j < arrVal.length; j++) {
+                        for (String updVal : updColNames) {
+                            int idxVal = arrVal[j].indexOf(updVal);
+                            if (idxVal > -1) {
+                                selValues.add(values.get(j));
+                            }
+                        }
+                    }
+                }
+
+                long lastId = prepareSQL(stmt, selValues, false);
                 if (lastId == -1) {
                     String msg = "UPDATE sql_deleted failed for references " + "table: " + refTable + ";";
                     throw new Exception(msg);
@@ -593,47 +610,104 @@ public class Database {
      */
     public String getReferenceTableName(String refValue) {
         String tableName = "";
-        if (refValue.length() > 0 && refValue.substring(0, 12).equalsIgnoreCase("CREATE TABLE")) {
-            Integer oPar = refValue.indexOf("(");
-            tableName = refValue.substring(13, oPar).trim();
-        }
+        if (refValue.length() > 0) {
+            String[] arr = refValue.split("(?i)REFERENCES", -1);
+            if (arr.length == 2) {
+                int oPar = arr[1].indexOf("(");
 
+                tableName = arr[1].substring(0, oPar).trim();
+            }
+        }
         return tableName;
     }
 
     /**
-     * GetReferenceColumnName method
+     * GetWithRefsColumnName
      *
      * @param refValue
      * @return
      */
-    public String getReferenceColumnName(String refValue) {
-        String colName = "";
+    public String[] getWithRefsColumnName(String refValue) {
+        String[] colNames = new String[0];
         if (refValue.length() > 0) {
-            Integer index = refValue.toLowerCase().indexOf("FOREIGN KEY".toLowerCase());
-            String stmt = refValue.substring(index + 12);
-            Integer oPar = stmt.indexOf("(");
-            Integer cPar = stmt.indexOf(")");
-            colName = stmt.substring(oPar + 1, cPar).trim();
+            String[] arr = refValue.split("(?i)REFERENCES", -1);
+            if (arr.length == 2) {
+                int oPar = arr[0].indexOf("(");
+                int cPar = arr[0].indexOf(")");
+                String colStr = arr[0].substring(oPar + 1, cPar).trim();
+                colNames = colStr.split(",");
+            }
         }
-        return colName;
+        return colNames;
+    }
+
+    /**
+     * GetReferencedColumnName method
+     *
+     * @param refValue
+     * @return
+     */
+    public String[] getReferencedColumnName(String refValue) {
+        String[] colNames = new String[0];
+        if (refValue.length() > 0) {
+            String[] arr = refValue.split("(?i)REFERENCES", -1);
+            if (arr.length == 2) {
+                int oPar = arr[1].indexOf("(");
+                int cPar = arr[1].indexOf(")");
+                String colStr = arr[1].substring(oPar + 1, cPar).trim();
+                colNames = colStr.split(",");
+            }
+        }
+        return colNames;
     }
 
     /**
      * UpdateWhere method
      *
      * @param whStmt
-     * @param colName
+     * @param withRefsNames
+     * @param colNames
      * @return
      */
-    public String updateWhere(String whStmt, String colName) {
+    public String updateWhere(String whStmt, String[] withRefsNames, String[] colNames) {
         String whereStmt = "";
         if (whStmt.length() > 0) {
             Integer index = whStmt.toLowerCase().indexOf("WHERE".toLowerCase());
             String stmt = whStmt.substring(index + 6);
-            Integer fEqual = stmt.indexOf("=");
-            String whereColName = stmt.substring(0, fEqual).trim();
-            whereStmt = whStmt.replaceFirst(whereColName, colName);
+            if (withRefsNames.length == colNames.length) {
+                for (int i = 0; i < withRefsNames.length; i++) {
+                    String colType = "withRefsNames";
+                    int idx = stmt.indexOf(withRefsNames[i]);
+                    if (idx == -1) {
+                        idx = stmt.indexOf(colNames[i]);
+                        colType = "colNames";
+                    }
+                    if (idx > -1) {
+                        String valStr = "";
+                        int fEqual = stmt.indexOf("=", idx);
+                        if (fEqual > -1) {
+                            int iAnd = stmt.indexOf("AND", fEqual);
+                            int ilAnd = stmt.indexOf("and", fEqual);
+                            if (iAnd > -1) {
+                                valStr = (stmt.substring(fEqual + 1, iAnd - 1)).trim();
+                            } else if (ilAnd > -1) {
+                                valStr = (stmt.substring(fEqual + 1, ilAnd - 1)).trim();
+                            } else {
+                                valStr = (stmt.substring(fEqual + 1)).trim();
+                            }
+                            if (i > 0) {
+                                whereStmt += " AND ";
+                            }
+                            if (colType.equals("withRefsNames")) {
+                                whereStmt += colNames[i] + " = " + valStr;
+                            } else {
+                                whereStmt += withRefsNames[i] + " = " + valStr;
+                            }
+                        }
+                    }
+                }
+                whereStmt = "WHERE " + whereStmt;
+            }
         }
         return whereStmt;
     }
@@ -646,19 +720,48 @@ public class Database {
      * @return
      * @throws Exception
      */
-    public JSArray getReferences(Database mDB, String tableName) throws Exception {
+    public ArrayList<String> getReferences(Database mDB, String tableName) throws Exception {
         String sqlStmt =
             "SELECT sql FROM sqlite_master " +
-            "WHERE sql LIKE('%REFERENCES%') AND " +
+            "WHERE sql LIKE('%FOREIGN KEY%') AND sql LIKE('%REFERENCES%') AND " +
             "sql LIKE('%" +
             tableName +
             "%') AND sql LIKE('%ON DELETE%');";
+
         try {
             JSArray references = mDB.selectSQL(sqlStmt, new ArrayList<Object>());
-            return references;
+            ArrayList<String> retRefs = new ArrayList<String>();
+            if (references.length() > 0) {
+                retRefs = getRefs(references.getJSONObject(0).getString("sql"));
+            }
+            return retRefs;
         } catch (Exception e) {
             throw new Exception(e.getMessage());
         }
+    }
+
+    /**
+     * GetRefs
+     *
+     * @param str
+     * @return
+     * @throws Exception
+     */
+    private ArrayList<String> getRefs(String str) throws Exception {
+        ArrayList<String> retRefs = new ArrayList<String>();
+        String[] arrFor = str.split("(?i)FOREIGN KEY", -1);
+        // Loop through Foreign Keys
+        for (int i = 1; i < arrFor.length; i++) {
+            retRefs.add((arrFor[i].split("(?i)ON DELETE", -1))[0].trim());
+        }
+        // find table name with references
+        if (str.substring(0, 12).toLowerCase().equals("CREATE TABLE".toLowerCase())) {
+            int oPar = str.indexOf("(");
+            String tableName = str.substring(13, oPar).trim();
+            retRefs.add(tableName);
+        }
+
+        return retRefs;
     }
 
     /**
@@ -681,19 +784,20 @@ public class Database {
                 JSObject row = new JSObject();
                 for (int i = 0; i < c.getColumnCount(); i++) {
                     String colName = c.getColumnName(i);
+                    int index = c.getColumnIndex(colName);
                     int type = c.getType(i);
                     switch (type) {
                         case FIELD_TYPE_STRING:
-                            row.put(colName, c.getString(c.getColumnIndex(colName)));
+                            row.put(colName, c.getString(index));
                             break;
                         case FIELD_TYPE_INTEGER:
-                            row.put(colName, c.getLong(c.getColumnIndex(colName)));
+                            row.put(colName, c.getLong(index));
                             break;
                         case FIELD_TYPE_FLOAT:
-                            row.put(colName, c.getDouble(c.getColumnIndex(colName)));
+                            row.put(colName, c.getDouble(index));
                             break;
                         case FIELD_TYPE_BLOB:
-                            row.put(colName, c.getBlob(c.getColumnIndex(colName)));
+                            row.put(colName, c.getBlob(index));
                             break;
                         case FIELD_TYPE_NULL:
                             row.put(colName, JSONObject.NULL);
@@ -792,11 +896,32 @@ public class Database {
                     throw new Exception(e.getMessage());
                 }
             } else {
-                throw new Exception("No last_modified column in tables");
+                throw new Exception("No last_modified/sql_deleted columns in tables");
             }
         } else {
             retObj.put("changes", Integer.valueOf(0));
             return retObj;
+        }
+    }
+
+    /**
+     * GetSyncDate method
+     * get the synchronization date
+     *
+     * @return
+     * @throws Exception
+     */
+    public Long getSyncDate() throws Exception {
+        long syncDate = 0;
+        try {
+            boolean isSyncTable = _uJson.isTableExists(this, "sync_table");
+            if (!isSyncTable) {
+                throw new Exception("No sync_table available");
+            }
+            syncDate = toJson.getSyncDate(this);
+            return syncDate;
+        } catch (Exception e) {
+            throw new Exception(e.getMessage());
         }
     }
 
@@ -824,27 +949,6 @@ public class Database {
             } else {
                 throw new Exception("changes < 0");
             }
-        } catch (Exception e) {
-            throw new Exception(e.getMessage());
-        }
-    }
-
-    /**
-     * GetSyncDate method
-     * get the synchronization date
-     *
-     * @return
-     * @throws Exception
-     */
-    public Long getSyncDate() throws Exception {
-        long syncDate = 0;
-        try {
-            boolean isSyncTable = _uJson.isTableExists(this, "sync_table");
-            if (!isSyncTable) {
-                throw new Exception("No sync_table available");
-            }
-            syncDate = toJson.getSyncDate(this);
-            return syncDate;
         } catch (Exception e) {
             throw new Exception(e.getMessage());
         }
@@ -897,10 +1001,13 @@ public class Database {
         inJson.setEncrypted(_encrypted);
         inJson.setMode(mode);
         try {
-            // set the last export date
-            Date date = new Date();
-            long syncTime = date.getTime() / 1000L;
-            toJson.setLastExportDate(this, syncTime);
+            boolean isSyncTable = _uJson.isTableExists(this, "sync_table");
+            if (isSyncTable) {
+                // set the last export date
+                Date date = new Date();
+                long syncTime = date.getTime() / 1000L;
+                toJson.setLastExportDate(this, syncTime);
+            }
             // launch the export process
             JsonSQLite retJson = toJson.createExportObject(this, inJson);
             //        retJson.print();

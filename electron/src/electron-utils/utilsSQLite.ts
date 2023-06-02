@@ -1,11 +1,13 @@
+const SQLITE_OPEN_READONLY = 1;
+
 export class UtilsSQLite {
-  //  public JSQlite: any;
-  public SQLite3: any;
+  public JSQlite: any;
+  // public SQLite3: any;
 
   constructor() {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    //    this.JSQlite = require('@journeyapps/sqlcipher').verbose();
-    this.SQLite3 = require('sqlite3');
+    this.JSQlite = require('@journeyapps/sqlcipher').verbose();
+    // this.SQLite3 = require('sqlite3');
   }
   /**
    * OpenOrCreateDatabase
@@ -13,18 +15,22 @@ export class UtilsSQLite {
    * @param password
    */
   public async openOrCreateDatabase(
-    pathDB: string /*,
-    password: string,*/,
+    pathDB: string,
+    password: string,
+    readonly: boolean,
   ): Promise<any> {
     const msg = 'OpenOrCreateDatabase: ';
     // open sqlite3 database
-    /*    const mDB: any = new this.JSQlite.Database(pathDB, {
-      verbose: console.log,
-    });
-    */
-    const mDB: any = new this.SQLite3.Database(pathDB, {
-      verbose: console.log,
-    });
+    let mDB: any;
+    if (!readonly) {
+      mDB = new this.JSQlite.Database(pathDB, {
+        verbose: console.log,
+      });
+    } else {
+      mDB = new this.JSQlite.Database(pathDB, SQLITE_OPEN_READONLY, {
+        verbose: console.log,
+      });
+    }
     if (mDB != null) {
       try {
         await this.dbChanges(mDB);
@@ -33,19 +39,12 @@ export class UtilsSQLite {
       }
 
       try {
-        /*        // set the password
+        // set the password
         if (password.length > 0) {
           await this.setCipherPragma(mDB, password);
         }
-*/
         // set Foreign Keys On
         await this.setForeignKeyConstraintsEnabled(mDB, true);
-
-        // Check Version
-        const curVersion: number = await this.getVersion(mDB);
-        if (curVersion === 0) {
-          await this.setVersion(mDB, 1);
-        }
       } catch (err) {
         return Promise.reject(msg + `${err}`);
       }
@@ -59,8 +58,8 @@ export class UtilsSQLite {
    * @param mDB
    * @param password
    */
-  /*
   public async setCipherPragma(mDB: any, password: string): Promise<void> {
+    console.log("setCipherPragma");
     return new Promise((resolve, reject) => {
       mDB.serialize(() => {
         mDB.run('PRAGMA cipher_compatibility = 4');
@@ -73,7 +72,6 @@ export class UtilsSQLite {
       });
     });
   }
-*/
   /**
    * SetForeignKeyConstraintsEnabled
    * @param mDB
@@ -141,8 +139,6 @@ export class UtilsSQLite {
    * @param password
    * @param newpassword
    */
-  /*
-
   public async changePassword(
     pathDB: string,
     password: string,
@@ -150,7 +146,7 @@ export class UtilsSQLite {
   ): Promise<void> {
     let mDB: any;
     try {
-      mDB = await this.openOrCreateDatabase(pathDB, password);
+      mDB = await this.openOrCreateDatabase(pathDB, password, false);
       await this.pragmaReKey(mDB, password, newpassword);
     } catch (err) {
       return Promise.reject(err);
@@ -158,14 +154,12 @@ export class UtilsSQLite {
       mDB.close();
     }
   }
-*/
   /**
    * PragmaReKey
    * @param mDB
    * @param password
    * @param newpassword
    */
-  /*
   private async pragmaReKey(
     mDB: any,
     password: string,
@@ -184,19 +178,20 @@ export class UtilsSQLite {
       });
     });
   }
-*/
   /**
    * BeginTransaction
    * @param db
    * @param isOpen
    */
   public async beginTransaction(db: any, isOpen: boolean): Promise<void> {
+    // eslint-disable-next-line no-async-promise-executor
     return new Promise((resolve, reject) => {
       const msg = 'BeginTransaction: ';
       if (!isOpen) {
         return Promise.reject(`${msg}database not opened`);
       }
       const sql = 'BEGIN TRANSACTION;';
+
       db.run(sql, (err: any) => {
         if (err) {
           reject(`${msg}${err.message}`);
@@ -316,7 +311,10 @@ export class UtilsSQLite {
         const sqlStmts: string[] = sqlStmt.split(';');
         const resArr: string[] = [];
         for (const stmt of sqlStmts) {
-          const trimStmt = stmt.trim().substring(0, 11).toUpperCase();
+          const trimStmt = stmt
+            .trim()
+            .substring(0, Math.min(stmt.trim().length, 11))
+            .toUpperCase();
           if (
             trimStmt === 'DELETE FROM' &&
             stmt.toLowerCase().includes('WHERE'.toLowerCase())
@@ -335,7 +333,8 @@ export class UtilsSQLite {
       changes = (await this.dbChanges(mDB)) - initChanges;
       return Promise.resolve(changes);
     } catch (err) {
-      return Promise.reject(`Execute: ${err.message}`);
+      const msg = err.message ? err.message : err;
+      return Promise.reject(`Execute: ${msg}`);
     }
   }
   /**
@@ -347,7 +346,8 @@ export class UtilsSQLite {
     return new Promise((resolve, reject) => {
       mDB.exec(sql, async (err: any) => {
         if (err) {
-          reject(`Execute: ${err.message}: `);
+          console.log(`in execDB err: ${JSON.stringify(err)}`);
+          reject(`Execute: ${err}: `);
         }
         resolve();
       });
@@ -421,18 +421,24 @@ export class UtilsSQLite {
 
       lastId = await this.getLastId(db);
       return Promise.resolve(lastId);
-
     } catch (err) {
-        return Promise.reject(`PrepareRun: ${err}`);
+      return Promise.reject(`PrepareRun: ${err}`);
     }
   }
 
-  private async runExec(db: any, stmt: string, values: any[] = []): Promise<void> {
+  private async runExec(
+    db: any,
+    stmt: string,
+    values: any[] = [],
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       if (values != null && values.length > 0) {
+        ``;
         db.run(stmt, values, (err: any) => {
           if (err) {
-             reject(err.message);
+            console.log(`in runExec err1: ${JSON.stringify(err)}`);
+            const msg = err.message ? err.message : err;
+            reject(msg);
           } else {
             resolve();
           }
@@ -440,7 +446,9 @@ export class UtilsSQLite {
       } else {
         db.exec(stmt, (err: any) => {
           if (err) {
-            reject(err.message);
+            console.log(`in runExec err2: ${JSON.stringify(err)}`);
+            const msg = err.message ? err.message : err;
+            reject(msg);
           } else {
             resolve();
           }
@@ -494,7 +502,7 @@ export class UtilsSQLite {
       }
       return sqlStmt;
     } catch (err) {
-      return Promise.reject(`DeleteSL: ${err}`);
+      return Promise.reject(`DeleteSQL: ${err}`);
     }
   }
   /**
@@ -513,29 +521,59 @@ export class UtilsSQLite {
   ): Promise<void> {
     try {
       const references = await this.getReferences(db, tableName);
+      if (references.length <= 0) {
+        return;
+      }
+      const tableNameWithRefs = references.pop();
       for (const refe of references) {
         // get the tableName of the reference
-        const refTable: string = await this.getReferenceTableName(refe.sql);
+        const refTable: string = await this.getReferenceTableName(refe);
         if (refTable.length <= 0) {
           continue;
         }
-
-        // get the columnName
-        const colName: string = await this.getReferenceColumnName(refe.sql);
-        if (colName.length <= 0) {
+        // get the with references columnName
+        const withRefsNames: string[] = await this.getWithRefsColumnName(refe);
+        if (withRefsNames.length <= 0) {
+          continue;
+        }
+        // get the referenced columnName
+        const colNames: string[] = await this.getReferencedColumnName(refe);
+        if (colNames.length <= 0) {
           continue;
         }
         // update the where clause
-        const uWhereStmt: string = await this.updateWhere(whereStmt, colName);
+        const uWhereStmt: string = await this.updateWhere(
+          whereStmt,
+          withRefsNames,
+          colNames,
+        );
         if (uWhereStmt.length <= 0) {
           continue;
         }
+        let updTableName: string = tableNameWithRefs;
+        let updColNames: string[] = colNames;
+        if (tableNameWithRefs === tableName) {
+          updTableName = refTable;
+          updColNames = withRefsNames;
+        }
 
         //update sql_deleted for this reference
-        const stmt = `UPDATE ${refTable} SET sql_deleted = 1 ${uWhereStmt}`;
+        const stmt: string =
+          'UPDATE ' + updTableName + ' SET sql_deleted = 1 ' + uWhereStmt;
         if (values != null && values.length > 0) {
           const mVal: any[] = await this.replaceUndefinedByNull(values);
-          await db.run(stmt, mVal);
+          let arrVal: string[] = whereStmt.split('?');
+          if (arrVal[arrVal.length - 1] === ';') arrVal = arrVal.slice(0, -1);
+          const selValues: any[] = [];
+          for (const [j, val] of arrVal.entries()) {
+            for (const updVal of updColNames) {
+              const idxVal = val.indexOf(updVal);
+              if (idxVal > -1) {
+                selValues.push(mVal[j]);
+              }
+            }
+          }
+          await db.run(stmt, selValues);
         } else {
           await db.exec(stmt);
         }
@@ -554,36 +592,85 @@ export class UtilsSQLite {
   }
   public async getReferenceTableName(refValue: string): Promise<string> {
     let tableName = '';
-    if (
-      refValue.length > 0 &&
-      refValue.substring(0, 12).toLowerCase() === 'CREATE TABLE'.toLowerCase()
-    ) {
-      const oPar = refValue.indexOf('(');
-      tableName = refValue.substring(13, oPar).trim();
+    if (refValue.length > 0) {
+      const arr: string[] = refValue.split(new RegExp('REFERENCES', 'i'));
+      if (arr.length === 2) {
+        const oPar: number = arr[1].indexOf('(');
+        tableName = arr[1].substring(0, oPar).trim();
+      }
     }
     return tableName;
   }
-  public async getReferenceColumnName(refValue: string): Promise<string> {
-    let colName = '';
+  public async getReferencedColumnName(refValue: string): Promise<string[]> {
+    let colNames: string[] = [];
     if (refValue.length > 0) {
-      const index: number = refValue
-        .toLowerCase()
-        .indexOf('FOREIGN KEY'.toLowerCase());
-      const stmt: string = refValue.substring(index + 12);
-      const oPar: number = stmt.indexOf('(');
-      const cPar: number = stmt.indexOf(')');
-      colName = stmt.substring(oPar + 1, cPar).trim();
+      const arr: string[] = refValue.split(new RegExp('REFERENCES', 'i'));
+      if (arr.length === 2) {
+        const oPar: number = arr[1].indexOf('(');
+        const cPar: number = arr[1].indexOf(')');
+        const colStr = arr[1].substring(oPar + 1, cPar).trim();
+        colNames = colStr.split(',');
+      }
     }
-    return colName;
+    return colNames;
   }
-  public async updateWhere(whStmt: string, colName: string): Promise<string> {
+  public async getWithRefsColumnName(refValue: string): Promise<string[]> {
+    let colNames: string[] = [];
+    if (refValue.length > 0) {
+      const arr: string[] = refValue.split(new RegExp('REFERENCES', 'i'));
+      if (arr.length === 2) {
+        const oPar: number = arr[0].indexOf('(');
+        const cPar: number = arr[0].indexOf(')');
+        const colStr = arr[0].substring(oPar + 1, cPar).trim();
+        colNames = colStr.split(',');
+      }
+    }
+    return colNames;
+  }
+  public async updateWhere(
+    whStmt: string,
+    withRefsNames: string[],
+    colNames: string[],
+  ): Promise<string> {
     let whereStmt = '';
     if (whStmt.length > 0) {
       const index: number = whStmt.toLowerCase().indexOf('WHERE'.toLowerCase());
       const stmt: string = whStmt.substring(index + 6);
-      const fEqual: number = stmt.indexOf('=');
-      const whereColName: string = stmt.substring(0, fEqual).trim();
-      whereStmt = whStmt.replace(whereColName, colName);
+      if (withRefsNames.length === colNames.length) {
+        for (let i = 0; i < withRefsNames.length; i++) {
+          let colType = 'withRefsNames';
+          let idx = stmt.indexOf(withRefsNames[i]);
+          if (idx === -1) {
+            idx = stmt.indexOf(colNames[i]);
+            colType = 'colNames';
+          }
+          if (idx > -1) {
+            let valStr = '';
+            const fEqual = stmt.indexOf('=', idx);
+            if (fEqual > -1) {
+              const iAnd = stmt.indexOf('AND', fEqual);
+              const ilAnd = stmt.indexOf('and', fEqual);
+              if (iAnd > -1) {
+                valStr = stmt.substring(fEqual + 1, iAnd - 1).trim();
+              } else if (ilAnd > -1) {
+                valStr = stmt.substring(fEqual + 1, ilAnd - 1).trim();
+              } else {
+                valStr = stmt.substring(fEqual + 1, stmt.length).trim();
+              }
+              if (i > 0) {
+                whereStmt += ' AND ';
+              }
+              if (colType === 'withRefsNames') {
+                whereStmt += `${colNames[i]} = ${valStr}`;
+              } else {
+                whereStmt += `${withRefsNames[i]} = ${valStr}`;
+              }
+            }
+          }
+        }
+
+        whereStmt = 'WHERE ' + whereStmt;
+      }
     }
     return whereStmt;
   }
@@ -591,18 +678,38 @@ export class UtilsSQLite {
   public async getReferences(db: any, tableName: string): Promise<any[]> {
     const sqlStmt: string =
       'SELECT sql FROM sqlite_master ' +
-      "WHERE sql LIKE('%REFERENCES%') AND " +
+      "WHERE sql LIKE('%FOREIGN KEY%') AND sql LIKE('%REFERENCES%') AND " +
       "sql LIKE('%" +
       tableName +
       "%') AND sql LIKE('%ON DELETE%');";
     try {
       const res: any[] = await this.queryAll(db, sqlStmt, []);
-      return Promise.resolve(res);
+      // get the reference's string(s)
+      let retRefs: string[] = [];
+      if (res.length > 0) {
+        retRefs = await this.getRefs(res[0].sql);
+      }
+      return Promise.resolve(retRefs);
     } catch (err) {
       return Promise.reject(new Error(`getReferences: ${err.message}`));
     }
   }
+  public async getRefs(str: string): Promise<string[]> {
+    const retRefs: string[] = [];
+    const arrFor: string[] = str.split(new RegExp('FOREIGN KEY', 'i'));
+    // Loop through Foreign Keys
+    for (let i = 1; i < arrFor.length; i++) {
+      retRefs.push(arrFor[i].split(new RegExp('ON DELETE', 'i'))[0].trim());
+    }
+    // find table name with references
+    if (str.substring(0, 12).toLowerCase() === 'CREATE TABLE'.toLowerCase()) {
+      const oPar = str.indexOf('(');
+      const tableName = str.substring(13, oPar).trim();
+      retRefs.push(tableName);
+    }
 
+    return retRefs;
+  }
   /**
    * QueryAll
    * @param mDB
@@ -713,6 +820,22 @@ export class UtilsSQLite {
       }
     } catch (err) {
       return Promise.reject(`isSqlDeleted: ${err}`);
+    }
+  }
+  public async getJournalMode(mDB: any): Promise<string> {
+    let resQuery: any[] = [];
+    let retMode = 'delete';
+    const query = `PRAGMA journal_mode;`;
+    try {
+      resQuery = await this.queryAll(mDB, query, []);
+      if (resQuery.length === 1) {
+        for (const query of resQuery) {
+          retMode = query.journal_mode;
+        }
+      }
+      return retMode;
+    } catch (err) {
+      return Promise.reject('GetJournalMode: ' + `${err}`);
     }
   }
   /**

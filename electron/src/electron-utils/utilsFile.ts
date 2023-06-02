@@ -1,7 +1,10 @@
+import { open, unlink } from 'node:fs/promises';
+
 export class UtilsFile {
   pathDB = 'Databases';
   Path: any = null;
   NodeFs: any = null;
+  NodeFetch: any = null;
   JSZip: any = null;
   Os: any = null;
   Electron: any = null;
@@ -15,6 +18,7 @@ export class UtilsFile {
   constructor() {
     this.Path = require('path');
     this.NodeFs = require('fs');
+    this.NodeFetch = require('node-fetch');
     this.Os = require('os');
     this.JSZip = require('jszip');
     this.Electron = require('electron');
@@ -24,6 +28,7 @@ export class UtilsFile {
     const idx: number = dir.indexOf('\\');
     if (idx != -1) this.sep = '\\';
     this.appPath = this.Electron.app.getAppPath();
+
     const rawdata = this.NodeFs.readFileSync(
       this.Path.resolve(this.appPath, 'package.json'),
     );
@@ -47,18 +52,32 @@ export class UtilsFile {
     this.osType = this.Os.type();
     switch (this.osType) {
       case 'Darwin':
-        this.pathDB = this.capConfig.plugins.CapacitorSQLite.electronMacLocation;
+        this.pathDB =
+          this.capConfig.plugins.CapacitorSQLite.electronMacLocation;
         break;
       case 'Linux':
-        this.pathDB = this.capConfig.plugins.CapacitorSQLite.electronLinuxLocation;
+        this.pathDB =
+          this.capConfig.plugins.CapacitorSQLite.electronLinuxLocation;
         break;
       case 'Windows_NT':
-        this.pathDB = this.capConfig.plugins.CapacitorSQLite.electronWindowsLocation;
+        this.pathDB =
+          this.capConfig.plugins.CapacitorSQLite.electronWindowsLocation;
         break;
       default:
         console.log('other operating system');
     }
     console.log(`&&& Databases path: ${this.pathDB}`);
+  }
+  /**
+   * GetExtName
+   * @param filePath
+   * @returns
+   */
+  public getExtName(filePath: string): string {
+    return this.Path.extname(filePath);
+  }
+  public getBaseName(filePath: string): string {
+    return this.Path.basename(filePath, this.Path.extname(filePath));
   }
   /**
    * IsPathExists
@@ -118,22 +137,30 @@ export class UtilsFile {
     return retPath;
   }
   /**
+   * GetCachePath
+   * get the database cache folder path
+   */
+  public getCachePath(): string {
+    let retPath = '';
+    const databasePath = this.getDatabasesPath();
+    retPath = this.Path.join(databasePath, 'cache');
+    const retB: boolean = this._createFolderIfNotExists(retPath);
+    if (!retB) retPath = '';
+    return retPath;
+  }
+  /**
    * GetAssetsDatabasesPath
    * get the assets databases folder path
    */
   public getAssetsDatabasesPath(): string {
     let retPath = '';
-    const rawdata = this.NodeFs.readFileSync(
-      this.Path.resolve(this.appPath, 'capacitor.config.json'),
-    );
-    const webDir = JSON.parse(rawdata).webDir;
+    const webDir = this.capConfig.webDir;
     const dir = webDir === 'www' ? 'src' : 'public';
-    retPath = this.Path.resolve(
-      this.appPath,
-      dir,
-      'assets',
-      this.pathDB.toLowerCase(),
-    );
+    let mAppPath = this.appPath;
+    if (this.Path.basename(this.appPath) === 'electron') {
+      mAppPath = this.Path.dirname(this.appPath);
+    }
+    retPath = this.Path.resolve(mAppPath, dir, 'assets', 'databases');
     return retPath;
   }
   /**
@@ -143,10 +170,12 @@ export class UtilsFile {
   public setPathSuffix(db: string): string {
     let toDb: string = db;
     const ext = '.db';
-    const sep = this.Path.sep;
-    if (db.substring(db.length - 3) === ext) {
-      if (!db.includes('SQLite.db')) {
-        toDb = db.slice(db.lastIndexOf(sep) + 1, -3) + 'SQLite.db';
+    const dirName = this.Path.dirname(db);
+    const baseName = this.getBaseName(db);
+    if (this.getExtName(db) === ext) {
+      if (!baseName.includes('SQLite')) {
+        const dbName = `${baseName}SQLite`;
+        toDb = `${this.Path.join(dirName, dbName)}${ext}`;
       }
     }
     return toDb;
@@ -160,7 +189,7 @@ export class UtilsFile {
     const filenames = this.NodeFs.readdirSync(path);
     const dbs: string[] = [];
     filenames.forEach((file: string) => {
-      if (this.Path.extname(file) == '.db' || this.Path.extname(file) == '.zip')
+      if (this.getExtName(file) == '.db' || this.getExtName(file) == '.zip')
         dbs.push(file);
     });
     return Promise.resolve(dbs);
@@ -185,8 +214,12 @@ export class UtilsFile {
    * @param db
    * @param overwrite
    */
-  public async unzipDatabase(db: string, overwrite: boolean): Promise<void> {
-    const pZip: string = this.Path.join(this.getAssetsDatabasesPath(), db);
+  public async unzipDatabase(
+    db: string,
+    fPath: string,
+    overwrite: boolean,
+  ): Promise<void> {
+    const pZip: string = this.Path.join(fPath, db);
     // Read the Zip file
     this.NodeFs.readFile(pZip, (err: any, data: any) => {
       if (err) {
@@ -311,15 +344,39 @@ export class UtilsFile {
    * @param filePath
    */
   public async deleteFilePath(filePath: string): Promise<void> {
+    let unlinkRetries = 50000;
+
+    /**
+     * On windows, the file lock behaves unpredictable. Often it claims a databsae file is locked / busy, although
+     * the file stream is already closed.
+     * Even though we already checked the status with the `waitForFilePathLock()` method previously.
+     *
+     * The only way to handle this reliably is to retry deletion until it works.
+     */
+    const deleteFile = async () => {
+      try {
+        await unlink(filePath);
+      } catch (err) {
+        unlinkRetries--;
+        if (unlinkRetries > 0) {
+          await deleteFile();
+        } else {
+          throw err;
+        }
+      }
+    };
+
     if (filePath.length !== 0) {
       // check if path exists
       const isPath = this.isPathExists(filePath);
       if (isPath) {
         try {
-          this.NodeFs.unlinkSync(filePath);
+          await this.waitForFilePathLock(filePath);
+          // actually delete the file
+          await deleteFile();
           return Promise.resolve();
         } catch (err) {
-          return Promise.reject('DeleteFilePath: ' + `${err}`);
+          return Promise.reject(`DeleteFilePath: ${err}`);
         }
       } else {
         return Promise.resolve();
@@ -328,6 +385,70 @@ export class UtilsFile {
       return Promise.reject('DeleteFilePath: delete filePath' + 'failed');
     }
   }
+
+  public async waitForFilePathLock(
+    filePath: string,
+    timeoutMS = 4000,
+  ): Promise<void> {
+    let timeIsOver = false;
+
+    setTimeout(() => {
+      timeIsOver = true;
+    }, timeoutMS);
+
+    return new Promise((resolve, reject) => {
+      const check = async () => {
+        if (timeIsOver) {
+          reject(
+            new Error(
+              `WaitForFilePathLock: The resource is still locked / busy after ${timeoutMS} milliseconds.`,
+            ),
+          );
+          return;
+        }
+
+        // check if path exists
+        const isPath = this.isPathExists(filePath);
+
+        // The file path does not exist. A non existant path cannot be locked.
+        if (!isPath) {
+          resolve();
+          return;
+        }
+
+        try {
+          const stream = await open(filePath, 'r+');
+
+          // We need to close the stream afterwards, because otherwise, we're locking the file
+          await stream.close();
+
+          resolve();
+        } catch (err) {
+          if (err.code === 'EBUSY') {
+            // The resource is busy. Retry in 100ms
+            setTimeout(() => {
+              check();
+            }, 100);
+            return;
+          } else if (err.code === 'ENOENT') {
+            // The file does not exist (anymore). So it cannot be locked.
+            resolve();
+            return;
+          } else {
+            // Something else went wrong.
+            reject(
+              new Error(
+                `WaitForFilePathLock: Error while checking the file: ${err}`,
+              ),
+            );
+          }
+        }
+      };
+
+      check();
+    });
+  }
+
   /**
    * RenameFileName
    * @param fileName
@@ -373,10 +494,36 @@ export class UtilsFile {
           return Promise.reject('RenameFilePath: ' + `${err}`);
         }
       } else {
-        return Promise.reject('RenameFilePath: filePath ' + 'does not exist');
+        return Promise.reject(`RenameFilePath: ${filePath} does not exist`);
       }
     } else {
       return Promise.reject('RenameFilePath: filePath not found');
+    }
+  }
+  public async moveDatabaseFromCache(): Promise<void> {
+    const cachePath: string = this.getCachePath();
+    const databasePath: string = this.getDatabasesPath();
+    const dbCacheList: string[] = await this.getFileList(cachePath);
+    for (const name of dbCacheList) {
+      const ext: string = this.getExtName(name);
+      const fromDBName: string = this.Path.join(cachePath, name);
+      if (ext === '.db') {
+        const pDb: string = this.setPathSuffix(
+          this.Path.join(databasePath, name),
+        );
+        try {
+          await this.renameFilePath(fromDBName, pDb);
+        } catch (err) {
+          return Promise.reject('moveDatabaseFromCache: ' + `${err}`);
+        }
+      }
+      if (ext === '.zip') {
+        try {
+          await this.deleteFilePath(fromDBName);
+        } catch (err) {
+          return Promise.reject('moveDatabaseFromCache: ' + `${err}`);
+        }
+      }
     }
   }
   /**
@@ -411,6 +558,26 @@ export class UtilsFile {
         `RestoreFileName: ${mFileName} ` + 'does not exist',
       );
     }
+  }
+  /**
+   * DownloadFileFromHTTP
+   * @param url
+   * @param path
+   */
+  public async downloadFileFromHTTP(
+    url: string,
+    pathFolder: string,
+  ): Promise<void> {
+    const res: any = await this.NodeFetch(url);
+    const ext: string = this.getExtName(url);
+    const dbName: string = this.getBaseName(url);
+    const filePath = `${this.Path.join(pathFolder, dbName)}${ext}`;
+    const fileStream: any = this.NodeFs.createWriteStream(filePath);
+    await new Promise((resolve, reject) => {
+      res.body.pipe(fileStream);
+      res.body.on('error', reject);
+      fileStream.on('finish', resolve);
+    });
   }
   /**
    * CreateFolderIfNotExists

@@ -1,13 +1,13 @@
-//import { GlobalSQLite } from '../GlobalSQLite';
 import type {
   capSQLiteVersionUpgrade,
   JsonSQLite,
 } from '../../../src/definitions';
+import { GlobalSQLite } from '../GlobalSQLite';
 
 import { ExportToJson } from './ImportExportJson/exportToJson';
 import { ImportFromJson } from './ImportExportJson/importFromJson';
 import { UtilsJson } from './ImportExportJson/utilsJson';
-//import { UtilsEncryption } from './utilsEncryption';
+import { UtilsEncryption } from './utilsEncryption';
 import { UtilsFile } from './utilsFile';
 import { UtilsSQLite } from './utilsSQLite';
 import { UtilsUpgrade } from './utilsUpgrade';
@@ -15,15 +15,16 @@ import { UtilsUpgrade } from './utilsUpgrade';
 export class Database {
   private _isDbOpen: boolean;
   private dbName: string;
-  //  private _encrypted: boolean;
-  //  private _mode: string;
+  private _encrypted: boolean;
+  private _mode: string;
   private version: number;
+  private readonly: boolean;
   private pathDB: string;
   private fileUtil: UtilsFile = new UtilsFile();
   private sqliteUtil: UtilsSQLite = new UtilsSQLite();
   private jsonUtil: UtilsJson = new UtilsJson();
-  //  private _uGlobal: GlobalSQLite = new GlobalSQLite();
-  //  private _uEncrypt: UtilsEncryption = new UtilsEncryption();
+  private globalUtil: GlobalSQLite = new GlobalSQLite();
+  private encryptionUtil: UtilsEncryption = new UtilsEncryption();
   private upgradeUtil: UtilsUpgrade = new UtilsUpgrade();
   private importFromJsonUtil: ImportFromJson = new ImportFromJson();
   private exportToJsonUtil: ExportToJson = new ExportToJson();
@@ -32,18 +33,22 @@ export class Database {
 
   constructor(
     dbName: string,
-    //    encrypted: boolean,
-    //    mode: string,
+    encrypted: boolean,
+    mode: string,
     version: number,
+    readonly: boolean,
     upgDict: Record<number, capSQLiteVersionUpgrade>,
+    globalUtil?: GlobalSQLite
   ) {
     this.dbName = dbName;
-    //    this._encrypted = encrypted;
-    //    this._mode = mode;
+    this._encrypted = encrypted;
+    this._mode = mode;
     this.version = version;
+    this.readonly = readonly;
     this.upgradeVersionDict = upgDict;
     this.pathDB = this.fileUtil.getFilePath(dbName);
     this._isDbOpen = false;
+    this.globalUtil = globalUtil ? globalUtil : new GlobalSQLite();
 
     if (this.pathDB.length === 0)
       throw new Error('Could not generate a path to ' + dbName);
@@ -65,58 +70,65 @@ export class Database {
    */
   async open(): Promise<void> {
     this._isDbOpen = false;
-    //    let password = '';
+       let password = '';
     try {
-      /*
       if (
         this._encrypted &&
         (this._mode === 'secret' || this._mode === 'encryption')
       ) {
-        password = this._uGlobal.secret;
+        password = this.globalUtil.secret;
       }
       if (this._mode === 'newsecret') {
         // change the password
-        const oPassword: string = this._uGlobal.secret;
-        const nPassword: string = this._uGlobal.newsecret;
-        await this._uSQLite.changePassword(this._pathDB, oPassword, nPassword);
+        const oPassword: string = this.globalUtil.secret;
+        const nPassword: string = this.globalUtil.newsecret;
+        await this.sqliteUtil.changePassword(this.pathDB, oPassword, nPassword);
         password = nPassword;
       }
 
       if (this._mode === 'encryption') {
-        await this._uEncrypt.encryptDatabase(this._pathDB, password);
+        await this.encryptionUtil.encryptDatabase(this.pathDB, password);
       }
-*/
       this.database = await this.sqliteUtil.openOrCreateDatabase(
-        this.pathDB /*,
-        password,*/,
-      );
-
-      const curVersion: number = await this.sqliteUtil.getVersion(
-        this.database,
+        this.pathDB,
+        password,
+        this.readonly,
       );
       this._isDbOpen = true;
-
-      if (
-        this.version > curVersion &&
-        Object.keys(this.upgradeVersionDict).length > 0
-      ) {
-        try {
-          // execute the upgrade flow process
-          await this.upgradeUtil.onUpgrade(
-            this.database,
-            this.upgradeVersionDict,
-            this.dbName,
-            curVersion,
-            this.version,
-          );
-          // delete the backup database
-          await this.fileUtil.deleteFileName(`backup-${this.dbName}`);
-        } catch (err) {
-          // restore the database from backup
+      if (!this.readonly) {
+        const curVersion: number = await this.sqliteUtil.getVersion(
+          this.database,
+        );
+        console.log(`@@@@ this.readonly: ${this.readonly}`);
+        console.log(
+          `@@@@ this.version: ${this.version} curVersion: ${curVersion}`,
+        );
+        if (
+          this.version > curVersion &&
+          Object.keys(this.upgradeVersionDict).length > 0
+        ) {
           try {
-            await this.fileUtil.restoreFileName(this.dbName, 'backup');
+            await this.fileUtil.copyFileName(
+              this.dbName,
+              `backup-${this.dbName}`,
+            );
+
+            // execute the upgrade flow process
+            await this.upgradeUtil.onUpgrade(
+              this.database,
+              this.upgradeVersionDict,
+              curVersion,
+              this.version,
+            );
+            // delete the backup database
+            await this.fileUtil.deleteFileName(`backup-${this.dbName}`);
           } catch (err) {
-            throw new Error(`Open: ${err}`);
+            // restore the database from backup
+            try {
+              await this.fileUtil.restoreFileName(this.dbName, 'backup');
+            } catch (err) {
+              throw new Error(`Open: ${err}`);
+            }
           }
         }
       }
@@ -134,14 +146,36 @@ export class Database {
   async close(): Promise<void> {
     this.ensureDatabaseIsOpen();
 
-    this.database.close((err: Error) => {
-      if (err) {
-        throw new Error('Close failed: ${this.dbName}  ${err}');
-      }
-      this._isDbOpen = false;
+    return new Promise((resolve, reject) => {
+      this.database.close((err: Error) => {
+        if (err) {
+          reject(new Error(`Close failed: ${this.dbName}  ${err}`));
+          return;
+        }
+
+        this._isDbOpen = false;
+        resolve();
+      });
     });
   }
-
+  /**
+   * ChangeSecret
+   * open the @journeyapps/sqlcipher sqlite3 database
+   * @returns Promise<void>
+   */
+  async changeSecret(): Promise<void> {
+    try {
+      if (this._mode === 'encryption') {
+        // change the password
+        const oPassword: string = this.globalUtil.secret;
+        const nPassword: string = this.globalUtil.newsecret;
+        await this.sqliteUtil.changePassword(this.pathDB, oPassword, nPassword);
+      }
+      return;
+    } catch (err) {
+      throw new Error(`Change secret: ${err}`);
+    }
+  }
   /**
    * GetVersion
    * get the database version
@@ -259,7 +293,7 @@ export class Database {
             throw new Error(`CreateSyncTable: failed changes < 0`);
           }
         } else {
-          throw new Error('No last_modified column in tables');
+          throw new Error('No last_modified/sql_deleted columns in tables');
         }
       } else {
         changes = 0;
@@ -349,6 +383,10 @@ export class Database {
 
     try {
       if (transaction) {
+        const mode: string = await this.sqliteUtil.getJournalMode(
+          this.database,
+        );
+        console.log(`$$$ in executeSQL journal_mode: ${mode} $$$`);
         await this.sqliteUtil.beginTransaction(this.database, this._isDbOpen);
       }
 
@@ -420,6 +458,10 @@ export class Database {
       initChanges = await this.sqliteUtil.dbChanges(this.database);
       // start a transaction
       if (transaction) {
+        const mode: string = await this.sqliteUtil.getJournalMode(
+          this.database,
+        );
+        console.log(`$$$ in runSQL journal_mode: ${mode} $$$`);
         await this.sqliteUtil.beginTransaction(this.database, this._isDbOpen);
       }
     } catch (err) {
@@ -478,6 +520,10 @@ export class Database {
 
       // start a transaction
       if (transaction) {
+        const mode: string = await this.sqliteUtil.getJournalMode(
+          this.database,
+        );
+        console.log(`$$$ in execSet journal_mode: ${mode} $$$`);
         await this.sqliteUtil.beginTransaction(this.database, this._isDbOpen);
       }
     } catch (err) {
@@ -589,15 +635,19 @@ export class Database {
     this.ensureDatabaseIsOpen();
 
     try {
-      await this.exportToJsonUtil.setLastExportDate(
+      const isTable = await this.jsonUtil.isTableExists(
         this.database,
-        new Date().toISOString(),
+        this._isDbOpen,
+        'sync_table',
       );
-
-      const jsonResult: JsonSQLite = await this.exportToJsonUtil.createExportObject(
-        this.database,
-        inJson,
-      );
+      if (isTable) {
+        await this.exportToJsonUtil.setLastExportDate(
+          this.database,
+          new Date().toISOString(),
+        );
+      }
+      const jsonResult: JsonSQLite =
+        await this.exportToJsonUtil.createExportObject(this.database, inJson);
       const keys = Object.keys(jsonResult);
       if (keys.length === 0) {
         const msg =

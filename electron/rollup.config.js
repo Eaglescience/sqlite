@@ -15,11 +15,12 @@ export default {
   external: [
     '@capacitor/core',
     'electron',
-    'sqlite3',
+    '@journeyapps/sqlcipher',
     'path',
     'fs',
     'os',
     'jszip',
+    'node-fetch',
   ],
   plugins: [
     nodeResolve(),

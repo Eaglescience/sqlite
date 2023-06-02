@@ -10,6 +10,7 @@ enum CapacitorSQLiteError: Error {
     private var config: SqliteConfig
     private var dbDict: [String: Database] = [:]
     private var databaseLocation: String = "Documents"
+    private let retHandler: ReturnHandler = ReturnHandler()
     private var initMessage: String = ""
     private var isInit: Bool = false
     private var isEncryption: Bool = true
@@ -315,6 +316,58 @@ enum CapacitorSQLiteError: Error {
     // swiftlint:enable no_space_in_method_call
     // swiftlint:enable function_body_length
 
+    // MARK: - ClearEncryptionSecret
+
+    @objc public func clearEncryptionSecret() throws {
+        if isInit {
+            if isEncryption {
+                do {
+                    // close all connections
+                    try closeAllConnections()
+                    // set encryption secret
+                    try UtilsSecret
+                        .clearEncryptionSecret(prefix: prefixKeychain,
+                                               databaseLocation: databaseLocation)
+                    return
+                } catch UtilsSecretError.clearEncryptionSecret(let message) {
+                    throw CapacitorSQLiteError.failed(message: message)
+                } catch let error {
+                    throw CapacitorSQLiteError.failed(message: "\(error)")
+                }
+            } else {
+                throw CapacitorSQLiteError.failed(message: "No Encryption set in capacitor.config")
+            }
+        } else {
+            throw CapacitorSQLiteError.failed(message: initMessage)
+        }
+    }
+
+    // MARK: - CheckEncryptionSecret
+
+    @objc public func checkEncryptionSecret(passphrase: String) throws ->  NSNumber {
+        if isInit {
+            if isEncryption {
+                do {
+                    // close all connections
+                    try closeAllConnections()
+                    // check encryption secret
+                    let res: NSNumber = try UtilsSecret
+                        .checkEncryptionSecret(prefix: prefixKeychain,
+                                               passphrase: passphrase)
+                    return res
+                } catch UtilsSecretError.checkEncryptionSecret(let message) {
+                    throw CapacitorSQLiteError.failed(message: message)
+                } catch let error {
+                    throw CapacitorSQLiteError.failed(message: "\(error)")
+                }
+            } else {
+                throw CapacitorSQLiteError.failed(message: "No Encryption set in capacitor.config")
+            }
+        } else {
+            throw CapacitorSQLiteError.failed(message: initMessage)
+        }
+    }
+
     // MARK: - getNCDatabasePath
 
     @objc public func getNCDatabasePath(_ folderPath: String, dbName: String ) throws -> String {
@@ -339,7 +392,8 @@ enum CapacitorSQLiteError: Error {
         if isInit {
 
             // check if the connection already exists
-            let conn = dbDict[databasePath]
+            let connName: String = "RO_\(databasePath)"
+            let conn = dbDict[connName]
             if conn != nil {
                 let msg = "Connection \(databasePath) already exists"
                 throw CapacitorSQLiteError.failed(message: msg)
@@ -356,9 +410,9 @@ enum CapacitorSQLiteError: Error {
                     databaseLocation: databaseLocation,
                     databaseName: databasePath,
                     encrypted: false, isEncryption: isEncryption, account: account,
-                    mode: "no-encryption", version: version, key: "",
+                    mode: "no-encryption", version: version, key: "", readonly: true,
                     vUpgDict: [:])
-                dbDict[databasePath] = mDb
+                dbDict[connName] = mDb
                 return
             } catch let error {
                 throw CapacitorSQLiteError.failed(message: "\(error)")
@@ -372,7 +426,8 @@ enum CapacitorSQLiteError: Error {
 
     @objc public func closeNCConnection(_ dbName: String) throws {
         if isInit {
-            guard let mDb: Database = dbDict[dbName] else {
+            let connName: String = "RO_\(dbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(dbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -383,7 +438,7 @@ enum CapacitorSQLiteError: Error {
                     throw CapacitorSQLiteError.failed(message: message)
                 }
             }
-            dbDict.removeValue(forKey: dbName)
+            dbDict.removeValue(forKey: connName)
             return
         } else {
             throw CapacitorSQLiteError.failed(message: initMessage)
@@ -392,18 +447,20 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - CreateConnection
 
+    // swiftlint:disable function_parameter_count
     @objc public func createConnection(_ dbName: String,
                                        encrypted: Bool,
                                        mode: String,
                                        version: Int,
                                        key: String,
-                                       vUpgDict: [Int: [String: Any]]) throws {
+                                       vUpgDict: [Int: [String: Any]], readonly: Bool) throws {
         if isInit {
             try self.closeAllConnections()
 
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
             // check if the connection already exists
-            let conn = dbDict[mDbName]
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            let conn = dbDict[connName]
             if conn != nil {
                 let msg = "Connection \(mDbName) already exists"
                 throw CapacitorSQLiteError.failed(message: msg)
@@ -417,9 +474,10 @@ enum CapacitorSQLiteError: Error {
                     databaseLocation: databaseLocation,
                     databaseName: "\(mDbName)SQLite.db",
                     encrypted: encrypted, isEncryption: isEncryption, account: account,
-                    mode: mode, version: version, key: key,
+                    mode: mode, version: version, key: key, readonly: readonly,
                     vUpgDict: vUpgDict)
-                dbDict[mDbName] = mDb
+
+                dbDict[connName] = mDb
                 return
             } catch let error {
                 throw CapacitorSQLiteError.failed(message: "\(error)")
@@ -428,13 +486,15 @@ enum CapacitorSQLiteError: Error {
             throw CapacitorSQLiteError.failed(message: initMessage)
         }
     }
+    // swiftlint:enable function_parameter_count
 
     // MARK: - Open
 
-    @objc public func open(_ dbName: String) throws {
+    @objc public func open(_ dbName: String, readonly: Bool) throws {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -451,10 +511,11 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - Close
 
-    @objc public func close(_ dbName: String) throws {
+    @objc public func close(_ dbName: String, readonly: Bool) throws {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -471,10 +532,11 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - getUrl
 
-    @objc public func getUrl(_ dbName: String) throws -> String {
+    @objc public func getUrl(_ dbName: String, readonly: Bool) throws -> String {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -487,10 +549,12 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - GetVersion
 
-    @objc public func getVersion(_ dbName: String) throws ->  NSNumber {
+    @objc public func getVersion(_ dbName: String, readonly: Bool)
+    throws ->  NSNumber {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -506,12 +570,40 @@ enum CapacitorSQLiteError: Error {
         }
     }
 
+    // MARK: - GetFromHTTPRequest
+
+    @objc public func getFromHTTPRequest(_ call: CAPPluginCall, url: String) throws {
+        if isInit {
+
+            UtilsDownloadFromHTTP.download(databaseLocation: databaseLocation,
+                                           url: url) { ( result) in
+                switch result {
+                case .success(_):
+                    self.retHandler.rResult(call: call)
+                    return
+                case .failure(let error):
+
+                    if error == .downloadFromHTTPFailed {
+                        let msg = "Download from HTTP failed"
+                        self.retHandler.rResult(call: call, message: msg)
+                        return
+                    }
+
+                }
+
+            }
+        } else {
+            throw CapacitorSQLiteError.failed(message: initMessage)
+        }
+    }
+
     // MARK: - Close Connection
 
-    @objc public func closeConnection(_ dbName: String) throws {
+    @objc public func closeConnection(_ dbName: String, readonly: Bool) throws {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 return
             }
             if mDb.isDBOpen() {
@@ -521,7 +613,7 @@ enum CapacitorSQLiteError: Error {
                     throw CapacitorSQLiteError.failed(message: message)
                 }
             }
-            dbDict.removeValue(forKey: mDbName)
+            dbDict.removeValue(forKey: connName)
             return
         } else {
             throw CapacitorSQLiteError.failed(message: initMessage)
@@ -530,30 +622,38 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - CheckConnectionsConsistency
 
-    @objc public func checkConnectionsConsistency(_ dbNames: [String]) throws ->  NSNumber {
+    @objc public func checkConnectionsConsistency(_ dbNames: [String],
+                                                  openModes: [String])
+    throws ->  NSNumber {
         if isInit {
             var keys: [String] = Array(self.dbDict.keys)
+            var idx: Int = 0
+            var conns: [String] = []
+            for name in dbNames {
+                conns.append("\(openModes[idx])_\(name)")
+                idx += 1
+            }
             do {
-                if dbNames.count == 0 {
+                if conns.count == 0 {
                     try closeAllConnections()
                     return 0
                 }
-                if keys.count < dbNames.count {
+                if keys.count < conns.count {
                     // not solvable inconsistency
                     try closeAllConnections()
                     return 0
                 }
-                if keys.count > dbNames.count {
+                if keys.count > conns.count {
                     for key in keys {
-                        if !dbNames.contains(key) {
+                        if !conns.contains(key) {
                             self.dbDict.removeValue(forKey: key)
                         }
                     }
                 }
                 keys = Array(self.dbDict.keys)
-                if keys.count == dbNames.count {
+                if keys.count == conns.count {
                     let set1 = Set(keys)
-                    let set2 = Set(dbNames)
+                    let set2 = Set(conns)
                     let arr = Array(set1.symmetricDifference(set2))
                     if arr.count == 0 {
                         return 1
@@ -592,6 +692,34 @@ enum CapacitorSQLiteError: Error {
         }
     }
 
+    // MARK: - IsDatabaseEncrypted
+
+    @objc public func isDatabaseEncrypted(_ dbName: String) throws -> NSNumber {
+        if isInit {
+            let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
+            let isFileExists: Bool = UtilsFile
+                .isFileExist(databaseLocation: databaseLocation,
+                             fileName: mDbName + "SQLite.db")
+            if isFileExists {
+                let state: State = UtilsSQLCipher
+                    .getDatabaseState(databaseLocation: databaseLocation,
+                                      databaseName: mDbName + "SQLite.db",
+                                      account: account)
+                if state.rawValue == "ENCRYPTEDGLOBALSECRET" || state.rawValue == "ENCRYPTEDSECRET" {
+                    return 1
+                }
+                if state.rawValue == "UNENCRYPTED" {
+                    return 0
+                }
+                throw CapacitorSQLiteError.failed(message: "Database unknown")
+            } else {
+                throw CapacitorSQLiteError.failed(message: "Database does not exist")
+            }
+        } else {
+            throw CapacitorSQLiteError.failed(message: initMessage)
+        }
+    }
+
     // MARK: - IsNCDatabase
 
     @objc public func isNCDatabase(_ databasePath: String) throws -> NSNumber {
@@ -610,10 +738,12 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - IsTableExists
 
-    @objc public func isTableExists(_ dbName: String, tableName: String) throws -> NSNumber {
+    @objc public func isTableExists(_ dbName: String, tableName: String,
+                                    readonly: Bool) throws -> NSNumber {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -643,12 +773,17 @@ enum CapacitorSQLiteError: Error {
     // MARK: - Execute
 
     @objc public func execute(_ dbName: String, statements: String,
-                              transaction: Bool)
+                              transaction: Bool, readonly: Bool)
     throws -> [String: Any] {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
+                throw CapacitorSQLiteError.failed(message: msg)
+            }
+            if readonly {
+                let msg = "not allowed in read-only mode"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
             if !mDb.isNCDB() && mDb.isDBOpen() {
@@ -686,12 +821,17 @@ enum CapacitorSQLiteError: Error {
     // MARK: - ExecuteSet
 
     @objc func executeSet(_ dbName: String, set: [[String: Any]],
-                          transaction: Bool)
+                          transaction: Bool, readonly: Bool)
     throws -> [String: Any] {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
+                throw CapacitorSQLiteError.failed(message: msg)
+            }
+            if readonly {
+                let msg = "not allowed in read-only mode"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
             if !mDb.isNCDB() && mDb.isDBOpen() {
@@ -715,14 +855,20 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - Run
 
+    // swiftlint:disable function_body_length
     // swiftlint:disable cyclomatic_complexity
     @objc func run(_ dbName: String, statement: String, values: [Any],
-                   transaction: Bool)
+                   transaction: Bool, readonly: Bool)
     throws -> [String: Any] {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
+                throw CapacitorSQLiteError.failed(message: msg)
+            }
+            if readonly {
+                let msg = "not allowed in read-only mode"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
             if !mDb.isNCDB() && mDb.isDBOpen() {
@@ -766,14 +912,16 @@ enum CapacitorSQLiteError: Error {
         }
     }
     // swiftlint:enable cyclomatic_complexity
+    // swiftlint:enable function_body_length
 
     // MARK: - Query
 
     @objc func query(_ dbName: String, statement: String,
-                     values: [Any]) throws -> [[String: Any]] {
+                     values: [Any], readonly: Bool) throws -> [[String: Any]] {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -799,10 +947,11 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - isDBExists
 
-    @objc func isDBExists(_ dbName: String) throws -> NSNumber {
+    @objc func isDBExists(_ dbName: String, readonly: Bool) throws -> NSNumber {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let _: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let _: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -821,10 +970,11 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - isDBOpen
 
-    @objc func isDBOpen(_ dbName: String) throws -> NSNumber {
+    @objc func isDBOpen(_ dbName: String, readonly: Bool) throws -> NSNumber {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -841,7 +991,9 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - deleteDatabase
 
-    @objc func deleteDatabase(_ dbName: String) throws {
+    // swiftlint:disable function_body_length
+    // swiftlint:disable cyclomatic_complexity
+    @objc func deleteDatabase(_ dbName: String, readonly: Bool) throws {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
 
@@ -854,6 +1006,8 @@ enum CapacitorSQLiteError: Error {
               }
             }
     }
+    // swiftlint:enable cyclomatic_complexity
+    // swiftlint:enable function_body_length
 
     // MARK: - isJsonValid
 
@@ -904,14 +1058,16 @@ enum CapacitorSQLiteError: Error {
                 let inMode: String = encrypted ? "secret"
                     : "no-encryption"
                 let version: Int = jsonSQLite[0].version
-                var dbName: String = CapacitorSQLite.getDatabaseName(dbName: jsonSQLite[0].database)
+                var dbName: String = CapacitorSQLite.getDatabaseName(
+                    dbName: jsonSQLite[0].database
+                )
                 dbName.append("SQLite.db")
                 // open the database
                 do {
                     mDb = try Database(
                         databaseLocation: databaseLocation, databaseName: dbName,
                         encrypted: encrypted, isEncryption: isEncryption, account: account,
-                        mode: inMode, version: version, key: "", vUpgDict: [:])
+                        mode: inMode, version: version, key: "", readonly: false, vUpgDict: [:])
                     if overwrite && mode == "full" {
                         let isExists = UtilsFile
                             .isFileExist(databaseLocation: databaseLocation,
@@ -997,11 +1153,12 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - exportToJson
 
-    @objc func exportToJson(_ dbName: String, expMode: String)
+    @objc func exportToJson(_ dbName: String, expMode: String, readonly: Bool)
     throws -> [String: Any] {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -1040,11 +1197,16 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - deleteExportedRows
 
-    @objc func deleteExportedRows(_ dbName: String) throws {
+    @objc func deleteExportedRows(_ dbName: String, readonly: Bool) throws {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
+                throw CapacitorSQLiteError.failed(message: msg)
+            }
+            if readonly {
+                let msg = "not allowed in read-only mode"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
             if mDb.isDBOpen() {
@@ -1067,11 +1229,16 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - createSyncTable
 
-    @objc func createSyncTable(_ dbName: String) throws -> NSNumber {
+    @objc func createSyncTable(_ dbName: String, readonly: Bool) throws -> NSNumber {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
+                throw CapacitorSQLiteError.failed(message: msg)
+            }
+            if readonly {
+                let msg = "not allowed in read-only mode"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
             if mDb.isDBOpen() {
@@ -1095,12 +1262,17 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - setSyncDate
 
-    @objc func setSyncDate(_ dbName: String, syncDate: String)
+    @objc func setSyncDate(_ dbName: String, syncDate: String, readonly: Bool)
     throws {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
+                throw CapacitorSQLiteError.failed(message: msg)
+            }
+            if readonly {
+                let msg = "not allowed in read-only mode"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
             if mDb.isDBOpen() {
@@ -1131,10 +1303,11 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - getSyncDate
 
-    @objc func getSyncDate(_ dbName: String) throws -> NSNumber {
+    @objc func getSyncDate(_ dbName: String, readonly: Bool) throws -> NSNumber {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -1169,25 +1342,23 @@ enum CapacitorSQLiteError: Error {
     throws -> [Int: [String: Any]] {
         if isInit {
             var upgDict: [String: Any] = [:]
+            var upgVersionDict: [Int: [String: Any]] = [:]
             for dict in upgrade {
                 let keys = dict.keys
-                if !(keys.contains("fromVersion")) ||
-                    !(keys.contains("toVersion")) ||
-                    !(keys.contains("statement")) {
+                if !(keys.contains("toVersion")) || !(keys.contains("statements")) {
                     var msg: String = "upgrade must have keys in "
-                    msg.append("{fromVersion,toVersion,statement}")
+                    msg.append("{toVersion,statements}")
                     throw CapacitorSQLiteError.failed(message: msg)
                 }
                 for (key, value) in dict {
                     upgDict[key] = value
                 }
+                guard let toVersion = upgDict["toVersion"] as? Int else {
+                    let msg: String = "toVersion key must be an Int"
+                    throw CapacitorSQLiteError.failed(message: msg)
+                }
+                upgVersionDict[toVersion] =  upgDict
             }
-            guard let fromVersion = upgDict["fromVersion"] as? Int else {
-                let msg: String = "fromVersion key must be an Int"
-                throw CapacitorSQLiteError.failed(message: msg)
-            }
-            let upgVersionDict: [Int: [String: Any]] =
-                [fromVersion: upgDict]
             return upgVersionDict
         } else {
             throw CapacitorSQLiteError.failed(message: initMessage)
@@ -1201,9 +1372,9 @@ enum CapacitorSQLiteError: Error {
 
             // check if the assets/database folder exists
             do {
-                let assetsDbPath: URL = try
+                let assetsDbURL: URL = try
                     UtilsFile.getAssetsDatabasesPath()
-                let aPath: String = assetsDbPath.path
+                let aPath: String = assetsDbURL.path
                 let bRes: Bool = UtilsFile.isDirExist(dirPath: aPath)
                 if bRes {
                     // get the database files from assets
@@ -1229,9 +1400,11 @@ enum CapacitorSQLiteError: Error {
                     for zip in zipList {
                         // for each zip uncompress the file to the Application
                         // database folder
-                        _ = try UtilsFile
-                            .unzipFromAssetToDatabase(databaseLocation: databaseLocation,
-                                                      zip: zip, overwrite: overwrite)
+                        _ = try UtilsFile.unzipToDatabase(
+                            fromURL: assetsDbURL,
+                            databaseLocation: databaseLocation,
+                            zip: zip,
+                            overwrite: overwrite)
                     }
                     return
                 } else {
@@ -1240,7 +1413,7 @@ enum CapacitorSQLiteError: Error {
                 }
             } catch UtilsFileError.copyFromAssetToDatabaseFailed(let message) {
                 throw CapacitorSQLiteError.failed(message: message)
-            } catch UtilsFileError.unzipFromAssetToDatabaseFailed(let message) {
+            } catch UtilsFileError.unzipToDatabaseFailed(let message) {
                 throw CapacitorSQLiteError.failed(message: message)
             } catch let error {
                 let msg: String = "\(error)"
@@ -1253,10 +1426,12 @@ enum CapacitorSQLiteError: Error {
 
     // MARK: - getTableList
 
-    @objc func getTableList(_ dbName: String) throws -> [String] {
+    @objc func getTableList(_ dbName: String, readonly: Bool)
+    throws -> [String] {
         if isInit {
             let mDbName = CapacitorSQLite.getDatabaseName(dbName: dbName)
-            guard let mDb: Database = dbDict[mDbName] else {
+            let connName: String = readonly ? "RO_\(mDbName)" : "RW_\(mDbName)"
+            guard let mDb: Database = dbDict[connName] else {
                 let msg = "Connection to \(mDbName) not available"
                 throw CapacitorSQLiteError.failed(message: msg)
             }
@@ -1366,6 +1541,32 @@ enum CapacitorSQLiteError: Error {
             throw CapacitorSQLiteError.failed(message: initMessage)
         }
     }
+
+    // MARK: - moveDatabasesAndAddSuffix
+
+    @objc func moveDatabasesAndAddSuffix(_ folderPath: String, dbList: [String]) throws {
+        if isInit {
+            do {
+                try UtilsMigrate
+                    .moveDatabasesAndAddSuffix(databaseLocation: databaseLocation,
+                                               folderPath: folderPath,
+                                               dbList: dbList)
+                return
+            } catch UtilsMigrateError.moveDatabasesAndAddSuffix(let message) {
+                var msg: String = "moveDatabasesAndAddSuffix:"
+                msg.append(" \(message)")
+                throw CapacitorSQLiteError.failed(message: msg)
+
+            } catch let error {
+                var msg: String = "moveDatabasesAndAddSuffix:"
+                msg.append(" \(error)")
+                throw CapacitorSQLiteError.failed(message: msg)
+            }
+        } else {
+            throw CapacitorSQLiteError.failed(message: initMessage)
+        }
+    }
+
     class func getDatabaseName(dbName: String) -> String {
         var retName: String = dbName
         if !retName.contains("/") {

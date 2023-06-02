@@ -1,37 +1,37 @@
 package com.getcapacitor.community.database.sqlite;
 
+import static com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLCipher.State.ENCRYPTED_GLOBAL_SECRET;
+import static com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLCipher.State.ENCRYPTED_SECRET;
+import static com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLCipher.State.UNENCRYPTED;
+
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.security.crypto.EncryptedSharedPreferences;
 import androidx.security.crypto.MasterKey;
-import androidx.security.crypto.MasterKeys;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.community.database.sqlite.SQLite.BiometricListener;
 import com.getcapacitor.community.database.sqlite.SQLite.Database;
+import com.getcapacitor.community.database.sqlite.SQLite.GlobalSQLite;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.JsonSQLite;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.UtilsJson;
 import com.getcapacitor.community.database.sqlite.SQLite.SqliteConfig;
 import com.getcapacitor.community.database.sqlite.SQLite.UtilsBiometric;
+import com.getcapacitor.community.database.sqlite.SQLite.UtilsDownloadFromHTTP;
 import com.getcapacitor.community.database.sqlite.SQLite.UtilsFile;
 import com.getcapacitor.community.database.sqlite.SQLite.UtilsMigrate;
 import com.getcapacitor.community.database.sqlite.SQLite.UtilsNCDatabase;
+import com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLCipher;
 import com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLite;
 import com.getcapacitor.community.database.sqlite.SQLite.UtilsSecret;
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Dictionary;
 import java.util.Enumeration;
@@ -40,32 +40,34 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Set;
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 public class CapacitorSQLite {
 
     private static final String TAG = CapacitorSQLite.class.getName();
-    private Context context;
-    private Dictionary<String, Database> dbDict = new Hashtable<>();
-    private UtilsSQLite uSqlite = new UtilsSQLite();
-    private UtilsFile uFile = new UtilsFile();
-    private UtilsJson uJson = new UtilsJson();
-    private UtilsMigrate uMigrate = new UtilsMigrate();
-    private UtilsNCDatabase uNCDatabase = new UtilsNCDatabase();
+    private final Context context;
+    private final Dictionary<String, Database> dbDict = new Hashtable<>();
+    private final UtilsSQLite uSqlite = new UtilsSQLite();
+    private final UtilsFile uFile = new UtilsFile();
+    private final UtilsJson uJson = new UtilsJson();
+    private final UtilsMigrate uMigrate = new UtilsMigrate();
+    private final UtilsNCDatabase uNCDatabase = new UtilsNCDatabase();
+    private final UtilsDownloadFromHTTP uHTTP = new UtilsDownloadFromHTTP();
+    private final GlobalSQLite globVar = new GlobalSQLite();
+    private final UtilsSQLCipher uCipher = new UtilsSQLCipher();
     private UtilsSecret uSecret;
     private SharedPreferences sharedPreferences = null;
     private MasterKey masterKeyAlias;
     private BiometricManager biometricManager;
-    private SqliteConfig config;
+    private final SqliteConfig config;
     private Boolean isEncryption = true;
     private Boolean biometricAuth = false;
-    private String biometricTitle;
-    private String biometricSubTitle;
-    private int VALIDITY_DURATION = 5;
-    private RetHandler rHandler = new RetHandler();
+    private final String biometricTitle;
+    private final String biometricSubTitle;
+    private final int VALIDITY_DURATION = 5;
+    private final RetHandler rHandler = new RetHandler();
+
     private PluginCall call;
 
     public CapacitorSQLite(Context context, SqliteConfig config) throws Exception {
@@ -217,6 +219,7 @@ public class CapacitorSQLite {
 
     /**
      * SetEncryptionSecret
+     *
      * @param passphrase
      * @throws Exception
      */
@@ -274,6 +277,7 @@ public class CapacitorSQLite {
 
     /**
      * ChangeEncryptionSecret
+     *
      * @param passphrase
      * @param oldPassphrase
      * @throws Exception
@@ -328,6 +332,47 @@ public class CapacitorSQLite {
         }
     }
 
+    /**
+     * ClearEncryptionSecret
+     * @throws Exception
+     */
+    public void clearEncryptionSecret() throws Exception {
+        if (isEncryption) {
+            try {
+                // close all connections
+                closeAllConnections();
+                // set encryption secret
+                uSecret.clearEncryptionSecret();
+            } catch (Exception e) {
+                throw new Exception(e.getMessage());
+            }
+        } else {
+            throw new Exception("No Encryption set in capacitor.config");
+        }
+    }
+
+    /**
+     * CheckEncryptionSecret
+     *
+     * @param passphrase
+     * @throws Exception
+     */
+    public Boolean checkEncryptionSecret(String passphrase) throws Exception {
+        if (isEncryption) {
+            try {
+                // close all connections
+                closeAllConnections();
+                // set encryption secret
+                Boolean res = uSecret.checkEncryptionSecret(passphrase);
+                return res;
+            } catch (Exception e) {
+                throw new Exception(e.getMessage());
+            }
+        } else {
+            throw new Exception("No Encryption set in capacitor.config");
+        }
+    }
+
     public String getNCDatabasePath(String folderPath, String database) throws Exception {
         try {
             String databasePath = uNCDatabase.getNCDatabasePath(context, folderPath, database);
@@ -339,6 +384,7 @@ public class CapacitorSQLite {
 
     /**
      * CreateConnection
+     *
      * @param dbName
      * @param encrypted
      * @param mode
@@ -346,14 +392,22 @@ public class CapacitorSQLite {
      * @param vUpgObject
      * @throws Exception
      */
-    public void createConnection(String dbName, boolean encrypted, String mode, int version, String key, Dictionary<Integer, JSONObject> vUpgObject)
-        throws Exception {
+    public void createConnection(
+        String dbName,
+        boolean encrypted,
+        String mode,
+        int version,
+        String key,
+        Dictionary<Integer, JSONObject> vUpgObject,
+        Boolean readonly
+    ) throws Exception {
         dbName = getDatabaseName(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
         // check if connection already exists
 
         closeAllConnections();
 
-        Database conn = dbDict.get(dbName);
+        Database conn = dbDict.get(connName);
 
         if (conn != null) {
             String msg = "Connection " + dbName + " already exists";
@@ -372,10 +426,11 @@ public class CapacitorSQLite {
                 isEncryption,
                 key,
                 vUpgObject,
-                sharedPreferences
+                sharedPreferences,
+                readonly
             );
             if (db != null) {
-                dbDict.put(dbName, db);
+                dbDict.put(connName, db);
                 return;
             } else {
                 String msg = "db is null";
@@ -388,13 +443,15 @@ public class CapacitorSQLite {
 
     /**
      * CreateNCConnection
+     *
      * @param dbPath
      * @param version
      * @throws Exception
      */
     public void createNCConnection(String dbPath, int version) throws Exception {
         // check if connection already exists
-        Database conn = dbDict.get(dbPath);
+        String connName = "RO_" + dbPath;
+        Database conn = dbDict.get(connName);
         if (conn != null) {
             String msg = "Connection " + dbPath + " already exists";
             throw new Exception(msg);
@@ -414,10 +471,11 @@ public class CapacitorSQLite {
                 isEncryption,
                 "",
                 new Hashtable<>(),
-                sharedPreferences
+                sharedPreferences,
+                true
             );
             if (db != null) {
-                dbDict.put(dbPath, db);
+                dbDict.put(connName, db);
                 return;
             } else {
                 String msg = "db is null";
@@ -430,12 +488,14 @@ public class CapacitorSQLite {
 
     /**
      * Open
+     *
      * @param dbName
      * @throws Exception
      */
-    public void open(String dbName) throws Exception {
+    public void open(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             try {
                 db.open();
@@ -451,12 +511,14 @@ public class CapacitorSQLite {
 
     /**
      * Close
+     *
      * @param dbName
      * @throws Exception
      */
-    public void close(String dbName) throws Exception {
+    public void close(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             if (db.isOpen()) {
                 if (!db.inTransaction()) {
@@ -482,13 +544,15 @@ public class CapacitorSQLite {
 
     /**
      * GetUrl
+     *
      * @param dbName
-     * @throws Exception
      * @return String
+     * @throws Exception
      */
-    public String getUrl(String dbName) throws Exception {
+    public String getUrl(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             try {
                 String url = db.getUrl();
@@ -504,13 +568,15 @@ public class CapacitorSQLite {
 
     /**
      * GetVersion
+     *
      * @param dbName
-     * @throws Exception
      * @return Integer
+     * @throws Exception
      */
-    public Integer getVersion(String dbName) throws Exception {
+    public Integer getVersion(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             try {
                 Integer version = db.getVersion();
@@ -526,20 +592,22 @@ public class CapacitorSQLite {
 
     /**
      * CloseNCConnection
+     *
      * @param dbPath
      * @throws Exception
      */
     public void closeNCConnection(String dbPath) throws Exception {
-        Database db = dbDict.get(dbPath);
+        String connName = "RO_" + dbPath;
+        Database db = dbDict.get(connName);
         if (db != null) {
             if (db.isOpen()) {
                 try {
-                    close(dbPath);
+                    db.close();
                 } catch (Exception e) {
                     throw new Exception(e.getMessage());
                 }
             }
-            dbDict.remove(dbPath);
+            dbDict.remove(connName);
             return;
         } else {
             String msg = "No available connection for database " + dbPath;
@@ -549,21 +617,23 @@ public class CapacitorSQLite {
 
     /**
      * CloseConnection
+     *
      * @param dbName
      * @throws Exception
      */
-    public void closeConnection(String dbName) throws Exception {
+    public void closeConnection(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             if (db.isOpen()) {
                 try {
-                    close(dbName);
+                    db.close();
                 } catch (Exception e) {
                     throw new Exception(e.getMessage());
                 }
             }
-            dbDict.remove(dbName);
+            dbDict.remove(connName);
             return;
         } else {
             String msg = "No available connection for database " + dbName;
@@ -571,10 +641,23 @@ public class CapacitorSQLite {
         }
     }
 
-    public Boolean checkConnectionsConsistency(JSArray dbNames) throws Exception {
+    public void getFromHTTPRequest(String url) throws Exception {
+        try {
+            uHTTP.download(context, url);
+        } catch (Exception e) {
+            throw new Exception(e.getMessage());
+        }
+    }
+
+    public Boolean checkConnectionsConsistency(JSArray dbNames, JSArray openModes) throws Exception {
         Set<String> keys = new HashSet<String>(Collections.list(dbDict.keys()));
         String msg = "All Native Connections released";
-        Set<String> conns = new HashSet<String>(uSqlite.stringJSArrayToArrayList(dbNames));
+        JSArray nameDBs = new JSArray();
+        for (Integer i = 0; i < dbNames.length(); i++) {
+            String name = openModes.getString(i) + "_" + dbNames.getString(i);
+            nameDBs.put(name);
+        }
+        Set<String> conns = new HashSet<String>(uSqlite.stringJSArrayToArrayList(nameDBs));
         try {
             if (conns.size() == 0) {
                 closeAllConnections();
@@ -617,6 +700,7 @@ public class CapacitorSQLite {
 
     /**
      * IsDatabase
+     *
      * @param dbName
      * @return Boolean
      * @throws Exception
@@ -627,7 +711,32 @@ public class CapacitorSQLite {
     }
 
     /**
+     * IsDatabaseEncrypted
+     *
+     * @param dbName
+     * @return Boolean
+     * @throws Exception
+     */
+    public Boolean isDatabaseEncrypted(String dbName) throws Exception {
+        dbName = getDatabaseName(dbName);
+        File file = context.getDatabasePath(dbName + "SQLite.db");
+        if (uFile.isFileExists(context, dbName + "SQLite.db")) {
+            UtilsSQLCipher.State state = uCipher.getDatabaseState(context, file, sharedPreferences, globVar);
+            if (state == ENCRYPTED_GLOBAL_SECRET || state == ENCRYPTED_SECRET) {
+                return true;
+            }
+            if (state == UNENCRYPTED) {
+                return false;
+            }
+            throw new Exception("Database unknown");
+        } else {
+            throw new Exception("Database does not exist");
+        }
+    }
+
+    /**
      * IsNCDatabase
+     *
      * @param dbPath
      * @return Boolean
      * @throws Exception
@@ -638,13 +747,15 @@ public class CapacitorSQLite {
 
     /**
      * IsTableExists
+     *
      * @param dbName
      * @param tableName
      * @throws Exception
      */
-    public Boolean isTableExists(String dbName, String tableName) throws Exception {
+    public Boolean isTableExists(String dbName, String tableName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             boolean res = uJson.isTableExists(db, tableName);
             return res;
@@ -656,6 +767,7 @@ public class CapacitorSQLite {
 
     /**
      * GetDatabaseList
+     *
      * @return JSArray
      * @throws Exception
      */
@@ -675,6 +787,7 @@ public class CapacitorSQLite {
 
     /**
      * GetMigratableDbList
+     *
      * @return JSArray
      * @throws Exception
      */
@@ -694,6 +807,7 @@ public class CapacitorSQLite {
 
     /**
      * AddSQLiteSuffix
+     *
      * @param folderPath
      * @throws Exception
      */
@@ -708,7 +822,6 @@ public class CapacitorSQLite {
     }
 
     /**
-     *
      * @param folderPath
      * @throws Exception
      */
@@ -723,16 +836,36 @@ public class CapacitorSQLite {
     }
 
     /**
+     *
+     * @param folderPath
+     * @throws Exception
+     */
+    public void moveDatabasesAndAddSuffix(String folderPath, JSArray dbList) throws Exception {
+        try {
+            ArrayList<String> mDbList = uSqlite.stringJSArrayToArrayList(dbList);
+            uMigrate.moveDatabasesAndAddSuffix(context, folderPath, mDbList);
+            return;
+        } catch (Exception e) {
+            throw new Exception(e.getMessage());
+        }
+    }
+
+    /**
      * Execute
+     *
      * @param dbName
      * @param statements
      * @return
      * @throws Exception
      */
-    public JSObject execute(String dbName, String statements, Boolean transaction) throws Exception {
+    public JSObject execute(String dbName, String statements, Boolean transaction, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
+            if (readonly) {
+                throw new Exception("not allowed in read-only mode");
+            }
             if (!db.isNCDB() && db.isOpen()) {
                 // convert string in string[]
                 String[] sqlCmdArray = uSqlite.getStatementsArray(statements);
@@ -754,15 +887,20 @@ public class CapacitorSQLite {
 
     /**
      * ExecuteSet
+     *
      * @param dbName
      * @param set
      * @return
      * @throws Exception
      */
-    public JSObject executeSet(String dbName, JSArray set, Boolean transaction) throws Exception {
+    public JSObject executeSet(String dbName, JSArray set, Boolean transaction, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
+            if (readonly) {
+                throw new Exception("not allowed in read-only mode");
+            }
             if (!db.isNCDB() && db.isOpen()) {
                 try {
                     JSObject res = db.executeSet(set, transaction);
@@ -782,17 +920,22 @@ public class CapacitorSQLite {
 
     /**
      * Run
+     *
      * @param dbName
      * @param statement
      * @param values
      * @return
      * @throws Exception
      */
-    public JSObject run(String dbName, String statement, JSArray values, Boolean transaction) throws Exception {
+    public JSObject run(String dbName, String statement, JSArray values, Boolean transaction, Boolean readonly) throws Exception {
         JSObject res;
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
+            if (readonly) {
+                throw new Exception("not allowed in read-only mode");
+            }
             if (!db.isNCDB() && db.isOpen()) {
                 if (values.length() > 0) {
                     try {
@@ -824,16 +967,18 @@ public class CapacitorSQLite {
 
     /**
      * Query
+     *
      * @param dbName
      * @param statement
      * @param values
      * @return
      * @throws Exception
      */
-    public JSArray query(String dbName, String statement, JSArray values) throws Exception {
+    public JSArray query(String dbName, String statement, JSArray values, Boolean readonly) throws Exception {
         JSArray res;
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             if (db.isOpen()) {
                 if (values.length() > 0) {
@@ -864,10 +1009,10 @@ public class CapacitorSQLite {
         }
     }
 
-    public JSArray getTableList(String dbName) throws Exception {
+    public JSArray getTableList(String dbName, Boolean readonly) throws Exception {
         JSArray res;
-        dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             if (db.isOpen()) {
                 res = db.getTableNames();
@@ -882,32 +1027,26 @@ public class CapacitorSQLite {
         }
     }
 
-    public Boolean isDBExists(String dbName) throws Exception {
+    public Boolean isDBExists(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             File databaseFile = context.getDatabasePath(dbName + "SQLite.db");
-            if (databaseFile.exists()) {
-                return true;
-            } else {
-                return false;
-            }
+            return databaseFile.exists();
         } else {
             String msg = "No available connection for database " + dbName;
             throw new Exception(msg);
         }
     }
 
-    public Boolean isDBOpen(String dbName) throws Exception {
+    public Boolean isDBOpen(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             Boolean isOpen = db.isOpen();
-            if (isOpen) {
-                return true;
-            } else {
-                return false;
-            }
+            return isOpen;
         } else {
             String msg = "No available connection for database " + dbName;
             throw new Exception(msg);
@@ -928,10 +1067,14 @@ public class CapacitorSQLite {
         }
     }
 
-    public JSObject createSyncTable(String dbName) throws Exception {
+    public JSObject createSyncTable(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
+            if (readonly) {
+                throw new Exception("not allowed in read-only mode");
+            }
             try {
                 if (!db.isOpen()) {
                     String msg = "CreateSyncTable: db not opened";
@@ -948,10 +1091,14 @@ public class CapacitorSQLite {
         }
     }
 
-    public void setSyncDate(String dbName, String syncDate) throws Exception {
+    public void setSyncDate(String dbName, String syncDate, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
+            if (readonly) {
+                throw new Exception("not allowed in read-only mode");
+            }
             try {
                 if (!db.isOpen()) {
                     String msg = "SetSyncDate: db not opened";
@@ -968,9 +1115,10 @@ public class CapacitorSQLite {
         }
     }
 
-    public Long getSyncDate(String dbName) throws Exception {
+    public Long getSyncDate(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             try {
                 if (!db.isOpen()) {
@@ -991,27 +1139,28 @@ public class CapacitorSQLite {
     public Dictionary<Integer, JSONObject> addUpgradeStatement(JSArray upgrade) throws Exception {
         Dictionary<Integer, JSONObject> upgDict = new Hashtable<>();
 
-        JSONObject upgObj = null;
-        try {
-            upgObj = (JSONObject) upgrade.get(0);
-        } catch (Exception e) {
-            String msg = "Must provide an upgrade statement " + e.getMessage();
-            throw new Exception(msg);
+        for (int i = 0; i < upgrade.length(); i++) {
+            JSONObject upgObj = null;
+            try {
+                upgObj = (JSONObject) upgrade.get(i);
+                if (upgObj == null || !upgObj.has("toVersion") || !upgObj.has("statements")) {
+                    String msg = "Must provide an upgrade statement";
+                    msg += " {toVersion,statement}";
+                    throw new Exception(msg);
+                }
+            } catch (Exception e) {
+                String msg = "Must provide an upgrade statement " + e.getMessage();
+                throw new Exception(msg);
+            }
+            try {
+                int toVersion = upgObj.getInt("toVersion");
+                upgDict.put(toVersion, upgObj);
+            } catch (Exception e) {
+                String msg = "Must provide toVersion as Integer" + e.getMessage();
+                throw new Exception(msg);
+            }
         }
-
-        if (upgObj == null || !upgObj.has("fromVersion") || !upgObj.has("toVersion") || !upgObj.has("statement")) {
-            String msg = "Must provide an upgrade statement";
-            msg += " {fromVersion,toVersion,statement}";
-            throw new Exception(msg);
-        }
-        try {
-            int fromVersion = upgObj.getInt("fromVersion");
-            upgDict.put(fromVersion, upgObj);
-            return upgDict;
-        } catch (Exception e) {
-            String msg = "Must provide fromVersion as Integer" + e.getMessage();
-            throw new Exception(msg);
-        }
+        return upgDict;
     }
 
     public Boolean isJsonValid(String parsingData) throws Exception {
@@ -1045,7 +1194,7 @@ public class CapacitorSQLite {
             if (encrypted) {
                 inMode = "secret";
             }
-            Database db = new Database(context, dbName, encrypted, inMode, dbVersion, isEncryption, "", new Hashtable<>(), sharedPreferences);
+            Database db = new Database(context, dbName, encrypted, inMode, dbVersion, isEncryption, "", new Hashtable<>(), sharedPreferences, false);
             if (overwrite && mode.equals("full")) {
                 Boolean isExists = this.uFile.isFileExists(context, dbName);
                 if (isExists) {
@@ -1087,9 +1236,10 @@ public class CapacitorSQLite {
         }
     }
 
-    public JSObject exportToJson(String dbName, String expMode) throws Exception {
+    public JSObject exportToJson(String dbName, String expMode, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = readonly ? "RO_" + dbName : "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
             try {
                 if (!db.isOpen()) {
@@ -1116,10 +1266,14 @@ public class CapacitorSQLite {
         }
     }
 
-    public void deleteExportedRows(String dbName) throws Exception {
+    public void deleteExportedRows(String dbName, Boolean readonly) throws Exception {
         dbName = getDatabaseName(dbName);
-        Database db = dbDict.get(dbName);
+        String connName = "RW_" + dbName;
+        Database db = dbDict.get(connName);
         if (db != null) {
+            if (readonly) {
+                throw new Exception("not allowed in read-only mode");
+            }
             try {
                 if (!db.isOpen()) {
                     String msg = "deleteExportedRows: db not opened";
@@ -1163,8 +1317,13 @@ public class CapacitorSQLite {
         try {
             Enumeration<String> connections = dbDict.keys();
             while (connections.hasMoreElements()) {
-                String dbName = (String) connections.nextElement();
-                closeConnection(dbName);
+                String dbName = connections.nextElement();
+                Boolean readonly = false;
+                if (dbName.substring(0, 3).equals("RO_")) {
+                    readonly = true;
+                }
+                dbName = dbName.substring(3);
+                closeConnection(dbName, readonly);
             }
         } catch (Exception e) {
             String msg = "close all connections " + e.getMessage();

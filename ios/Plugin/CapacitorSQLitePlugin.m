@@ -38,10 +38,17 @@ CAP_PLUGIN(CapacitorSQLitePlugin, "CapacitorSQLite",
            CAP_PLUGIN_METHOD(getMigratableDbList, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(addSQLiteSuffix, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(deleteOldDatabases, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(moveDatabasesAndAddSuffix, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(checkConnectionsConsistency, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(isSecretStored, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(setEncryptionSecret, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(changeEncryptionSecret, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(clearEncryptionSecret, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(getFromHTTPRequest, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(checkEncryptionSecret, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(isInConfigEncryption, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(isInConfigBiometricAuth, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(isDatabaseEncrypted, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(validateEncryptionSecret, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(initialize, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(resetPassphrase, CAPPluginReturnPromise);

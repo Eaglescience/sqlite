@@ -47,9 +47,11 @@ class Database {
     var key: String = ""
 
     // MARK: - Init
-    init(databaseLocation: String, databaseName: String, encrypted: Bool,
-         isEncryption: Bool, account: String, mode: String, version: Int, key: String,
-         vUpgDict: [Int: [String: Any]] = [:]) throws {
+    init(databaseLocation: String, databaseName: String,
+         encrypted: Bool, isEncryption: Bool,
+         account: String, mode: String, version: Int, key: String, readonly: Bool,
+         vUpgDict: [Int: [String: Any]] = [:]
+    ) throws {
         self.dbVersion = version
         self.encrypted = encrypted
         self.isEncryption = isEncryption
@@ -58,6 +60,7 @@ class Database {
         self.mode = mode
         self.vUpgDict = vUpgDict
         self.databaseLocation = databaseLocation
+        self.readOnly = readonly
         self.key = key
 
         if databaseName.contains("/")  &&
@@ -110,7 +113,8 @@ class Database {
                 do {
                     let ret: Bool = try UtilsEncryption
                         .encryptDatabase(databaseLocation: databaseLocation,
-                                         filePath: path, password: password)
+                                         filePath: path, password: password,
+                                         version: dbVersion)
                     if !ret {
                         let msg: String = "Failed in encryption"
                         throw DatabaseError.open(message: msg)
@@ -136,20 +140,21 @@ class Database {
             try UtilsSQLCipher
                 .setForeignKeyConstraintsEnabled(mDB: self,
                                                  toggle: true)
-            if !ncDB {
-                var curVersion: Int = try UtilsSQLCipher
-                    .getVersion(mDB: self)
-                if curVersion == 0 {
-                    try UtilsSQLCipher.setVersion(mDB: self, version: 1)
-                    curVersion = try UtilsSQLCipher.getVersion(mDB: self)
-                }
+            if !ncDB && !self.readOnly {
+                let curVersion: Int = try UtilsSQLCipher.getVersion(mDB: self)
+
                 if dbVersion > curVersion && vUpgDict.count > 0 {
+                    // backup the database
+                    _ = try UtilsFile.copyFile(fileName: dbName,
+                                               toFileName: "backup-\(dbName)",
+                                               databaseLocation: databaseLocation)
+
                     _ = try uUpg
                         .onUpgrade(mDB: self, upgDict: vUpgDict,
-                                   dbName: dbName,
                                    currentVersion: curVersion,
                                    targetVersion: dbVersion,
                                    databaseLocation: databaseLocation)
+
                     try UtilsSQLCipher
                         .deleteBackupDB(databaseLocation: databaseLocation,
                                         databaseName: dbName)
@@ -561,14 +566,20 @@ class Database {
         do {
             let date = Date()
             let syncTime: Int = Int(date.timeIntervalSince1970)
-            // Set the last exported date
-            try ExportToJson.setLastExportDate(mDB: self, sTime: syncTime)
+            let isExists: Bool = try UtilsJson.isTableExists(
+                mDB: self, tableName: "sync_table")
+            if isExists {
+                // Set the last exported date
+                try ExportToJson.setLastExportDate(mDB: self, sTime: syncTime)
+            }
             // Launch the export process
             let data: [String: Any] = [
                 "dbName": dbName, "encrypted": self.encrypted,
                 "expMode": expMode, "version": dbVersion]
             retObj = try ExportToJson
                 .createExportObject(mDB: self, data: data)
+        } catch UtilsJsonError.tableNotExists(let message) {
+            throw DatabaseError.exportToJson(message: message)
         } catch ExportToJsonError.setLastExportDate(let message) {
             throw DatabaseError.exportToJson(message: message)
         } catch ExportToJsonError.createExportObject(let message) {

@@ -1336,7 +1336,7 @@ public class CapacitorSQLitePlugin extends Plugin {
         Boolean readOnly = call.getBoolean("readonly", false);
         if (implementation != null) {
             try {
-                implementation.deleteDatabase(dbName, readOnly);
+                implementation.deleteDatabase(dbName);
                 rHandler.retResult(call, null, null);
                 return;
             } catch (Exception e) {

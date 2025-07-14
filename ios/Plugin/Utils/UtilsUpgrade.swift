@@ -26,7 +26,6 @@ class UtilsUpgrade {
 
         for (versionKey, upgrade) in Array(upgDict).sorted(by: {$0.0 < $1.0}) {
             if versionKey > currentVersion && versionKey <= targetVersion {
-                print("- UtilsUpgrade.onUpgrade toVersion: \(versionKey)")
 
                 guard let statements = upgrade["statements"] as? [String] else {
                     let msg: String = "Error: onUpgrade statements not given"
@@ -53,6 +52,7 @@ class UtilsUpgrade {
         do {
             do {
                 try UtilsSQLCipher.beginTransaction(mDB: mDB)
+                mDB.setIsTransActive(newValue: true)
             } catch UtilsSQLCipherError.beginTransaction(let message) {
                 throw DatabaseError.executeSQL(message: "Error: onUpgrade: \(message)")
             }
@@ -64,6 +64,7 @@ class UtilsUpgrade {
 
             do {
                 try UtilsSQLCipher.commitTransaction(mDB: mDB)
+                mDB.setIsTransActive(newValue: false)
             } catch UtilsSQLCipherError.commitTransaction(let message) {
                 throw DatabaseError.executeSQL(message: "Error: onUpgrade: \(message)")
             }
@@ -71,6 +72,7 @@ class UtilsUpgrade {
         } catch DatabaseError.executeSQL(let message) {
             do {
                 try UtilsSQLCipher.rollbackTransaction(mDB: mDB)
+                mDB.setIsTransActive(newValue: false)
             } catch UtilsSQLCipherError.rollbackTransaction(let message2) {
                 throw DatabaseError.executeSQL(message: "Error: onUpgrade: \(message) \(message2)")
             }

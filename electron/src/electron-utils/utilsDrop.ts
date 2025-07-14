@@ -8,7 +8,7 @@ export class UtilsDrop {
    * @param db
    * @param type ["table","index","trigger"]
    */
-  public async dropElements(db: any, type: string): Promise<void> {
+  public dropElements(db: any, type: string): void {
     let msg = '';
     let stmt1 = `AND name NOT LIKE ('sqlite_%')`;
 
@@ -27,13 +27,13 @@ export class UtilsDrop {
         msg = 'DropViews';
         break;
       default:
-        return Promise.reject(`DropElements: ${type} ` + 'not found');
+        throw new Error(`DropElements: ${type} ` + 'not found');
     }
     // get the element's names
     let stmt = 'SELECT name FROM sqlite_master WHERE ';
     stmt += `type = '${type}' ${stmt1};`;
     try {
-      const elements: any[] = await this.sqliteUtil.queryAll(db, stmt, []);
+      const elements: any[] = this.sqliteUtil.queryAll(db, stmt, [], true);
       if (elements.length > 0) {
         const upType: string = type.toUpperCase();
         const statements: string[] = [];
@@ -43,20 +43,15 @@ export class UtilsDrop {
           statements.push(stmt);
         }
         for (const stmt of statements) {
-          const lastId: number = await this.sqliteUtil.prepareRun(
-            db,
-            stmt,
-            [],
-            false,
-          );
-          if (lastId < 0) {
-            return Promise.reject(`${msg}: lastId < 0`);
+          const results = this.sqliteUtil.prepareRun(db, stmt, [], false, 'no');
+          if (results.lastId < 0) {
+            throw new Error(`${msg}: lastId < 0`);
           }
         }
       }
-      return Promise.resolve();
+      return;
     } catch (err) {
-      return Promise.reject(`${msg}: ${err}`);
+      throw new Error(`${msg}: ${err}`);
     }
   }
   /**
@@ -64,21 +59,21 @@ export class UtilsDrop {
    * Drop all database's elements
    * @param db
    */
-  public async dropAll(db: any): Promise<void> {
+  public dropAll(db: any): void {
     try {
       // drop tables
-      await this.dropElements(db, 'table');
+      this.dropElements(db, 'table');
       // drop indexes
-      await this.dropElements(db, 'index');
+      this.dropElements(db, 'index');
       // drop triggers
-      await this.dropElements(db, 'trigger');
+      this.dropElements(db, 'trigger');
       // drop views
-      await this.dropElements(db, 'view');
+      this.dropElements(db, 'view');
       // vacuum the database
-      await this.sqliteUtil.prepareRun(db, 'VACUUM;', [], false);
-      return Promise.resolve();
+      this.sqliteUtil.prepareRun(db, 'VACUUM;', [], false, 'no');
+      return;
     } catch (err) {
-      return Promise.reject(`DropAll: ${err}`);
+      throw new Error(`DropAll: ${err}`);
     }
   }
   /**
@@ -86,10 +81,7 @@ export class UtilsDrop {
    * @param db
    * @param alterTables
    */
-  public async dropTempTables(
-    db: any,
-    alterTables: Record<string, string[]>,
-  ): Promise<void> {
+  public dropTempTables(db: any, alterTables: Record<string, string[]>): void {
     const tempTables: string[] = Object.keys(alterTables);
     const statements: string[] = [];
     for (const tTable of tempTables) {
@@ -98,17 +90,13 @@ export class UtilsDrop {
       statements.push(stmt);
     }
     try {
-      const changes: number = await this.sqliteUtil.execute(
-        db,
-        statements.join('\n'),
-        false,
-      );
-      if (changes < 0) {
-        return Promise.reject('DropTempTables: changes < 0');
+      const results = this.sqliteUtil.execute(db, statements.join('\n'), false, true);
+      if (results.changes < 0) {
+        throw new Error('DropTempTables: changes < 0');
       }
-      return Promise.resolve();
+      return;
     } catch (err) {
-      return Promise.reject(`DropTempTables: ${err}`);
+      throw new Error(`DropTempTables: ${err}`);
     }
   }
 }

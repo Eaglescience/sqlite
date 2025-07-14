@@ -2,30 +2,31 @@
 <h3 align="center">SQLITE DATABASE</h3>
 <p align="center"><strong><code>@capacitor-community/sqlite</code></strong></p>
 <br>
-<p align="center" style="font-size:50px;color:red"><strong>CAPACITOR 5</strong></p><br>
 
 <p align="center">
-  Capacitor community plugin for Native and Electron SQLite Databases. In Native databases could be encrypted with SQLCipher
+  Capacitor community plugin for Native and Electron SQLite Databases.
+   - In Native, databases could be encrypted with `SQLCipher`
+   - In Electron, databases could be encrypted with `better-sqlite3-multiple-ciphers`
 </p>
 <br>
 <p align="center">
-  <img src="https://img.shields.io/maintenance/yes/2023?style=flat-square" />
-  <a href="https://github.com/capacitor-community/sqlite/actions?query=workflow%3A%22CI%22"><img src="https://img.shields.io/github/workflow/status/capacitor-community/sqlite/CI?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/@capacitor-community/sqlite"><img src="https://img.shields.io/npm/l/@capacitor-community/sqlite?style=flat-square" /></a>
+  <img src="https://img.shields.io/maintenance/yes/2024?style=flat-square" />
+  <a href="https://github.com/capacitor-community/sqlite/actions?query=workflow%3A%22CI%22"><img src="https://img.shields.io/github/actions/workflow/status/capacitor-community/sqlite/ci.yml?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@capacitor-community/sqlite"><img src="https://img.shields.io/npm/l/@capacitor-community/sqlite?branch=master&style=flat-square" /></a>
 <br>
   <a href="https://www.npmjs.com/package/@capacitor-community/sqlite"><img src="https://img.shields.io/npm/dw/@capacitor-community/sqlite?style=flat-square" /></a>
   <a href="https://www.npmjs.com/package/@capacitor-community/sqlite"><img src="https://img.shields.io/npm/v/@capacitor-community/sqlite?style=flat-square" /></a>
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-<a href="#contributors-"><img src="https://img.shields.io/badge/all%20contributors-36-orange?style=flat-square" /></a>
+<a href="#contributors-"><img src="https://img.shields.io/badge/all%20contributors-45-orange?style=flat-square" /></a>
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 </p>
 
 
 ## Maintainers
 
-| Maintainer        | GitHub                                    | Social |
-| ----------------- | ----------------------------------------- | ------ |
-| Quéau Jean Pierre | [jepiqueau](https://github.com/jepiqueau) |        |
+| Maintainer | GitHub                                    | Social                                        |
+| ---------- | ----------------------------------------- | --------------------------------------------- |
+| Robin Genz | [robingenz](https://github.com/robingenz) | [@robin_genz](https://twitter.com/robin_genz) |
 
 To install:
 
@@ -41,12 +42,12 @@ npx cap sync
 
 ```
 pnpm install --save @capacitor-community/sqlite
-pnpm install --save @jeep-sqlite
+pnpm install --save jeep-sqlite
 pnpm install --save sql.js
 npx cap sync
 ```
 
-then add plugin to main `capacitor.config.json` file:
+then add plugin to main `capacitor.config.ts` file:
 
 ```ts
 import { CapacitorConfig } from '@capacitor/cli';
@@ -73,6 +74,7 @@ const config: CapacitorConfig = {
         biometricTitle : "Biometric login for capacitor sqlite",
         biometricSubTitle : "Log in using your biometric"
       },
+      electronIsEncryption: true,
       electronWindowsLocation: "C:\\ProgramData\\CapacitorDatabases",
       electronMacLocation: "/Volumes/Development_Lacie/Development/Databases",
       electronLinuxLocation: "Databases"
@@ -86,12 +88,18 @@ export default config;
 ## More Reading:
 
  - [Updating to Capacitor 5](https://capacitorjs.com/docs/updating/5-0)
- - [Releases](https://github.com/capacitor-community/sqlite/blob/master/info_releases.md)
+ - [Releases](https://github.com/capacitor-community/sqlite/blob/master/docs/info_releases.md)
  - [Changelog](https://github.com/capacitor-community/sqlite/blob/master/CHANGELOG.md)
  - [Issues](https://github.com/capacitor-community/sqlite/issues)
  - [Capacitor documentation](https://capacitorjs.com/docs/)
  - [Datatypes In SQLite Version 3](https://www.sqlite.org/datatype3.html)
- - [IncrementalUpgradeDatabaseVersion](https://capacitorjs.com/docs/IncrementalUpgradeDatabaseVersion.md)
+ - [IncrementalUpgradeDatabaseVersion](https://github.com/capacitor-community/sqlite/blob/master/docs/IncrementalUpgradeDatabaseVersion.md)
+
+
+## Tutorials Blog
+
+ - [JeepQ Capacitor Plugin Tutorials](https://jepiqueau.github.io/)
+
 
 ## Web Quirks
 
@@ -164,12 +172,29 @@ You'll need the usual capacitor/android/react npm script to build and copy the a
 
 ```bash
 cd electron
-npm install --save @journeyapps/sqlcipher
+npm install --save better-sqlite3-multiple-ciphers
+npm install --save electron-json-storage
 npm install --save jszip
 npm install --save node-fetch@2.6.7
+npm install --save crypto
+npm install --save crypto-js
+npm install --save-dev @types/better-sqlite3
+npm install --save-dev @types/electron-json-storage
+npm install --save-dev @types/crypto-js
 ```
 - **Important**: `node-fetch` version must be `<=2.6.7`; otherwise [you'll get an error](https://github.com/capacitor-community/sqlite/issues/349 "you'll get an error ERR_REQUIRE_ESM") running the app. 
 
+- **Important**: if you are using `@capacitor-community/electron v5` 
+  - you have to stick to Electron@25.8.4 till further notice so do:
+```bash
+npm install --save-dev electron@25.8.4
+npm uninstall --save-dev electron-rebuild
+npm install --save-dev @electron/rebuild
+npm install --save-dev electron-builder@24.6.4
+```
+  - in electron folder open the `tsconfig.json` file and add `"skipLibCheck": true,`
+
+  
 ## IOS Quirks
 
 - on iOS, no further steps needed.
@@ -177,62 +202,66 @@ npm install --save node-fetch@2.6.7
 
 ## Supported Methods by Platform
 
-| Name                        | Android | iOS | Electron | Web |
-| :-------------------------- | :------ | :-- | :------- | :-- |
-| createConnection (ReadWrite)| ✅      | ✅  | ✅        | ✅  |
-| createConnection (ReadOnly) | ✅      | ✅  | ✅        | ❌  | since 4.1.0-7
-| closeConnection (ReadWrite) | ✅      | ✅  | ✅        | ✅  |
-| closeConnection (ReadOnly)  | ✅      | ✅  | ✅        | ❌  | since 4.1.0-7
-| isConnection (ReadWrite)    | ✅      | ✅  | ✅        | ✅  |
-| isConnection (ReadOnly)     | ✅      | ✅  | ✅        | ❌  | since 4.1.0-7
-| open (non-encrypted DB)     | ✅      | ✅  | ✅        | ✅  |
-| open (encrypted DB)         | ✅      | ✅  | ✅        | ❌  |
-| close                       | ✅      | ✅  | ✅        | ✅  |
-| getUrl                      | ✅      | ✅  | ❌        | ❌  |
-| getVersion                  | ✅      | ✅  | ✅        | ✅  |
-| execute                     | ✅      | ✅  | ✅        | ✅  |
-| executeSet                  | ✅      | ✅  | ✅        | ✅  |
-| run                         | ✅      | ✅  | ✅        | ✅  |
-| query                       | ✅      | ✅  | ✅        | ✅  |
-| deleteDatabase              | ✅      | ✅  | ✅        | ✅  |
-| importFromJson              | ✅      | ✅  | ✅        | ✅  |
-| exportToJson                | ✅      | ✅  | ✅        | ✅  |
-| deleteExportedRows          | ✅      | ✅  | ✅        | ✅  |
-| createSyncTable             | ✅      | ✅  | ✅        | ✅  |
-| setSyncDate                 | ✅      | ✅  | ✅        | ✅  |
-| getSyncDate                 | ✅      | ✅  | ✅        | ✅  |
-| isJsonValid                 | ✅      | ✅  | ✅        | ✅  |
-| isDBExists                  | ✅      | ✅  | ✅        | ✅  |
-| addUpgradeStatement         | ✅      | ✅  | ✅        | ✅  | Modified 4.1.0-6
-| copyFromAssets              | ✅      | ✅  | ✅        | ✅  |
-| isDBOpen                    | ✅      | ✅  | ✅        | ✅  |
-| isDatabase                  | ✅      | ✅  | ✅        | ✅  |
-| isTableExists               | ✅      | ✅  | ✅        | ✅  |
-| getTableList                | ✅      | ✅  | ✅        | ✅  |
-| getDatabaseList             | ✅      | ✅  | ✅        | ✅  |
-| getMigratableDbList         | ✅      | ✅  | ❌        | ❌  |
-| addSQLiteSuffix             | ✅      | ✅  | ❌        | ❌  |
-| deleteOldDatabases          | ✅      | ✅  | ❌        | ❌  |
-| moveDatabasesAndAddSuffix   | ✅      | ✅  | ❌        | ❌  |
-| checkConnectionsConsistency | ✅      | ✅  | ✅        | ✅  |
-| isSecretStored              | ✅      | ✅  | ✅        | ❌  |
-| setEncryptionSecret         | ✅      | ✅  | ✅        | ❌  |
-| changeEncryptionSecret      | ✅      | ✅  | ✅        | ❌  |
-| clearEncryptionSecret       | ✅      | ✅  | ✅        | ❌  |
-| checkEncryptionSecret       | ✅      | ✅  | ❌        | ❌  |
-| initWebStore                | ❌      | ❌  | ❌        | ✅  |
-| saveToStore                 | ❌      | ❌  | ❌        | ✅  |
-| getNCDatabasePath           | ✅      | ✅  | ❌        | ❌  |
-| createNCConnection          | ✅      | ✅  | ❌        | ❌  |
-| closeNCConnection           | ✅      | ✅  | ❌        | ❌  |
-| isNCDatabase                | ✅      | ✅  | ❌        | ❌  |
-| transaction                 | ✅      | ✅  | ✅        | ✅  |
-| getFromHTTPRequest          | ✅      | ✅  | ✅        | ✅  | since 4.2.0
-| isDatabaseEncrypted         | ✅      | ✅  | ❌        | ❌  | since 4.6.2-2
-| isInConfigEncryption        | ✅      | ✅  | ❌        | ❌  | since 4.6.2-2
-| isInConfigBiometricAuth     | ✅      | ✅  | ❌        | ❌  | since 4.6.2-2
-| getFromLocalDiskToStore     | ❌      | ❌  | ❌        | ✅  | since 4.6.3
-| saveToLocalDisk             | ❌      | ❌  | ❌        | ✅  | since 4.6.3
+| Name                         | Android | iOS  | Electron | Web  |
+| :--------------------------- | :------ | :--- | :------- | :--- |
+| createConnection (ReadWrite) | ✅       | ✅    | ✅        | ✅    |
+| createConnection (ReadOnly)  | ✅       | ✅    | ✅        | ❌    | since 4.1.0-7    |
+| closeConnection (ReadWrite)  | ✅       | ✅    | ✅        | ✅    |
+| closeConnection (ReadOnly)   | ✅       | ✅    | ✅        | ❌    | since 4.1.0-7    |
+| isConnection (ReadWrite)     | ✅       | ✅    | ✅        | ✅    |
+| isConnection (ReadOnly)      | ✅       | ✅    | ✅        | ❌    | since 4.1.0-7    |
+| open (non-encrypted DB)      | ✅       | ✅    | ✅        | ✅    |
+| open (encrypted DB)          | ✅       | ✅    | ✅        | ❌    |
+| close                        | ✅       | ✅    | ✅        | ✅    |
+| getUrl                       | ✅       | ✅    | ❌        | ❌    |
+| getVersion                   | ✅       | ✅    | ✅        | ✅    |
+| execute                      | ✅       | ✅    | ✅        | ✅    |
+| executeSet                   | ✅       | ✅    | ✅        | ✅    |
+| run                          | ✅       | ✅    | ✅        | ✅    |
+| query                        | ✅       | ✅    | ✅        | ✅    |
+| deleteDatabase               | ✅       | ✅    | ✅        | ✅    |
+| importFromJson               | ✅       | ✅    | ✅        | ✅    |
+| exportToJson                 | ✅       | ✅    | ✅        | ✅    |
+| deleteExportedRows           | ✅       | ✅    | ✅        | ✅    |
+| createSyncTable              | ✅       | ✅    | ✅        | ✅    |
+| setSyncDate                  | ✅       | ✅    | ✅        | ✅    |
+| getSyncDate                  | ✅       | ✅    | ✅        | ✅    |
+| isJsonValid                  | ✅       | ✅    | ✅        | ✅    |
+| isDBExists                   | ✅       | ✅    | ✅        | ✅    |
+| addUpgradeStatement          | ✅       | ✅    | ✅        | ✅    | Modified 4.1.0-6 |
+| copyFromAssets               | ✅       | ✅    | ✅        | ✅    |
+| isDBOpen                     | ✅       | ✅    | ✅        | ✅    |
+| isDatabase                   | ✅       | ✅    | ✅        | ✅    |
+| isTableExists                | ✅       | ✅    | ✅        | ✅    |
+| getTableList                 | ✅       | ✅    | ✅        | ✅    |
+| getDatabaseList              | ✅       | ✅    | ✅        | ✅    |
+| getMigratableDbList          | ✅       | ✅    | ❌        | ❌    |
+| addSQLiteSuffix              | ✅       | ✅    | ❌        | ❌    |
+| deleteOldDatabases           | ✅       | ✅    | ❌        | ❌    |
+| moveDatabasesAndAddSuffix    | ✅       | ✅    | ❌        | ❌    |
+| checkConnectionsConsistency  | ✅       | ✅    | ✅        | ✅    |
+| isSecretStored               | ✅       | ✅    | ✅        | ❌    |
+| setEncryptionSecret          | ✅       | ✅    | ✅        | ❌    |
+| changeEncryptionSecret       | ✅       | ✅    | ✅        | ❌    |
+| clearEncryptionSecret        | ✅       | ✅    | ✅        | ❌    |
+| checkEncryptionSecret        | ✅       | ✅    | ✅        | ❌    |
+| initWebStore                 | ❌       | ❌    | ❌        | ✅    |
+| saveToStore                  | ❌       | ❌    | ❌        | ✅    |
+| getNCDatabasePath            | ✅       | ✅    | ❌        | ❌    |
+| createNCConnection           | ✅       | ✅    | ❌        | ❌    |
+| closeNCConnection            | ✅       | ✅    | ❌        | ❌    |
+| isNCDatabase                 | ✅       | ✅    | ❌        | ❌    |
+| transaction                  | ✅       | ✅    | ✅        | ✅    |
+| getFromHTTPRequest           | ✅       | ✅    | ✅        | ✅    | since 4.2.0      |
+| isDatabaseEncrypted          | ✅       | ✅    | ✅        | ❌    | since 4.6.2-2    |
+| isInConfigEncryption         | ✅       | ✅    | ✅        | ❌    | since 4.6.2-2    |
+| isInConfigBiometricAuth      | ✅       | ✅    | ❌        | ❌    | since 4.6.2-2    |
+| getFromLocalDiskToStore      | ❌       | ❌    | ❌        | ✅    | since 4.6.3      |
+| saveToLocalDisk              | ❌       | ❌    | ❌        | ✅    | since 4.6.3      |
+| beginTransaction             | ✅       | ✅    | ✅        | ✅    | since 5.0.7      |
+| commitTransaction            | ✅       | ✅    | ✅        | ✅    | since 5.0.7      |
+| rollbackTransaction          | ✅       | ✅    | ✅        | ✅    | since 5.0.7      |
+| isTransactionActive          | ✅       | ✅    | ✅        | ✅    | since 5.0.7      |
 
 
 ## Documentation & APIs
@@ -251,6 +280,8 @@ npm install --save node-fetch@2.6.7
 
 - [Type ORM](https://github.com/capacitor-community/sqlite/blob/master/docs/TypeORM-Usage.md)
 
+- [TypeORM-From-5.6.0](https://github.com/capacitor-community/sqlite/blob/master/docs/TypeORM-Usage-From-5.6.0.md)
+
 - [Web Usage](https://github.com/capacitor-community/sqlite/blob/master/docs/Web-Usage.md)
 
 - [Non Conformed Databases](https://github.com/capacitor-community/sqlite/blob/master/docs/NonConformedDatabases.md)
@@ -259,64 +290,73 @@ npm install --save node-fetch@2.6.7
 
 - [Enable SQLite Schema Error Syntax Highlighting](https://github.com/capacitor-community/sqlite/blob/master/docs/SyntaxScanner-For-SQLite-Code.md)
 
+- [Electron Better SQLite3](https://github.com/capacitor-community/sqlite/blob/master/docs/ElectronBetterSQLite3.md)
+
+- [Enable minified build on Android](https://github.com/capacitor-community/sqlite/blob/master/docs/AndroidMinify.md)
+
+
 ## Applications demonstrating the use of the plugin and related documentation
 
 ### Ionic/Angular
 
-- [Ionic/Angular Usage Documentation](https://github.com/capacitor-community/sqlite/blob/master/docs/Ionic-Angular-Usage.md)
+- [Web ionic7-angular-sqlite-app](https://github.com/jepiqueau/blog-tutorials-apps/tree/main/SQLite/Part-1/ionic7-angular-sqlite-app) Ionic 7 Angular 16 Capacitor 5 SQLite CRUD operations for Web.
 
-- [ionic7-angular-sqlite-starter](https://github.com/jepiqueau/ionic7-angular-sqlite-starter) Ionic 7 Angular 16 Capacitor 5 SQLite CRUD operations.
+- [Native ionic7-angular-sqlite-app](https://github.com/jepiqueau/blog-tutorials-apps/tree/main/SQLite/Part-2/ionic7-angular-sqlite-app) Ionic 7 Angular 16 Capacitor 5 SQLite CRUD operations for iOS, Android and Electron.
 
-- [angular-sqlite-app-starter](https://github.com/jepiqueau/angular-sqlite-app-starter) This one is now more for testing the issues.
+- [angular-sqlite-synchronize-app](https://github.com/jepiqueau/angular-sqlite-synchronize-app) (Not Updated)
 
-- [angular-sqlite-synchronize-app](https://github.com/jepiqueau/angular-sqlite-synchronize-app)
-
-### Ionic/Angular TypeORM app
+### Ionic/Angular TypeORM app (Not Updated)
 
 - [ionic-sqlite-typeorm-app](https://github.com/jepiqueau/ionic-sqlite-typeorm-app)
 
 ### Ionic/React
 
-- [Ionic/React Usage Documentation](https://github.com/capacitor-community/sqlite/blob/master/docs/Ionic-React-Usage.md)
+- [Web ionic7-react-sqlite-app](https://github.com/jepiqueau/blog-tutorials-apps/tree/main/SQLite/Part-1/ionic7-react-sqlite-app) Ionic7 React18.2.0 Vite4.3.9 Capacitor 5 SQLite CRUD operations for Web.
 
-- [react-sqlite-app-starter](https://github.com/jepiqueau/react-sqlite-app-starter)
+- [Web ionic7-react-sqlite-app](https://github.com/jepiqueau/blog-tutorials-apps/tree/main/SQLite/Part-2/ionic7-react-sqlite-app) Ionic7 React18.2.0 Vite4.3.9 Capacitor 5 SQLite CRUD operations for iOS, Android and Electron.
 
-### React+Vite
-
-- [react-vite-sqlite-app](https://github.com/jepiqueau/react-vite-sqlite-app)
-
-### Ionic/React Capacitor SQLite + TypeORM Example App
+### Ionic/React Capacitor SQLite + TypeORM Example App 
 
 - [capacitor-sqlite-react-typeorm-app](https://github.com/cosentino/capacitor-sqlite-react-typeorm-app)
 
 ### Ionic/Vue
 
-- [Ionic/Vue Usage Documentation](https://github.com/capacitor-community/sqlite/blob/master/docs/Ionic-Vue-Usage.md)
+- [Web ionic7-vue-sqlite-app](https://github.com/jepiqueau/blog-tutorials-apps/tree/main/SQLite/Part-1/ionic7-vue-sqlite-app) Ionic7 Vue3.2.45 Vite4.3.9 Capacitor 5 SQLite CRUD operations for Web.
 
-- [vue-sqlite-app-starter](https://github.com/jepiqueau/vue-sqlite-app-starter)
+- [Web ionic7-vue-sqlite-app](https://github.com/jepiqueau/blog-tutorials-apps/tree/main/SQLite/Part-2/ionic7-vue-sqlite-app) Ionic7 Vue3.2.45 Vite4.3.9 Capacitor 5 SQLite CRUD operations for iOS, Android and Electron.
 
-### Vue
+### Vue (Not Updated)
 
 - [vue-sqlite-app](https://github.com/jepiqueau/vue-sqlite-app)
 
-### Vue+Vite
 
-- [vite-vue-sqlite-app](https://github.com/jepiqueau/vite-vue-sqlite-app)
-
-### Vue TypeORM app
+### Vue TypeORM app (Not Updated)
 
 - [vue-typeorm-app](https://github.com/jepiqueau/vue-typeorm-app)
 
-### SolidJS+Vite
+### SolidJS+Vite (Not Updated)
 
 - [solidjs-vite-sqlite-app](https://github.com/jepiqueau/capacitor-solid-sqlite)
 
+### Nuxt3 + Kysely
+
+- [nuxt3-capacitor-sqlite-kysely-example](https://github.com/DawidWetzler/nuxt3-capacitor-sqlite-kysely-example)
+
+### Quasar
+
+- [Web quasar-sqlite-app](https://github.com/jepiqueau/blog-tutorials-apps/tree/main/SQLite/Part-1/quasar-sqlite-app) Quasar2.6.0 Capacitor 5 SQLite CRUD operations for Web.
+
+- [Native quasar-sqlite-app](https://github.com/jepiqueau/blog-tutorials-apps/tree/main/SQLite/Part-2/quasar-sqlite-app) Quasar2.6.0 Capacitor 5 SQLite CRUD operations for iOS, Android and Electron.
+
+### SvelteKit
+
+- [Web/Native vite-sveltekit-capacitor-sqlite](https://github.com/jepiqueau/vite-sveltekit-capacitor-sqlite)
 
 ## Dependencies
 
 The iOS and Android codes are using `SQLCipher` allowing for database encryption.
 The iOS codes is using `ZIPFoundation` for unzipping assets files
-The Electron code is using `@journeyapps/sqlcipher` and `node-fetch` from 4.2.0.
+The Electron code is using `better-sqlite3-multiple-ciphers` , `electron-json-storage` and `node-fetch`  from 5.0.4.
 The Web code is using the Stencil component `jeep-sqlite` based on `sql.js`, `localforage`. and `jszip`  
 
 ## Contributors ✨
@@ -363,6 +403,20 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   <a href="https://github.com/pranav-singhal" title="pranav-singhal"><img src="https://github.com/pranav-singhal.png?size=100" width="50" height="50" /></a>
   <a href="https://github.com/beligatclement" title="beligatclement"><img src="https://github.com/beligatclement.png?size=100" width="50" height="50" /></a>
   <a href="https://github.com/cosentino" title="cosentino"><img src="https://avatars.githubusercontent.com/u/376903?s=48&v=4" width="50" height="50" /></a>
+  <a href="https://github.com/Guiqft" title="Guiqft"><img src="https://avatars.githubusercontent.com/u/9392803?v=4" width="50" height="50" /></a>
+  <a href="https://github.com/DawidWetzler" title="DawidWetzler"><img src="https://avatars.githubusercontent.com/u/49675685?v=4" width="50" height="50" /></a>
+  <a href="https://github.com/mmouterde" title="mmouterde"><img src="https://avatars.githubusercontent.com/u/733538?v=4" width="50" height="50" /></a>
+  <a href="https://github.com/msfstef" title="msfstef"><img src="https://avatars.githubusercontent.com/u/12274098?v=4" width="50" height="50" /></a>
+  <a href="https://github.com/ChrisHSandN" title="
+ChrisHSandN"><img src="https://avatars.githubusercontent.com/u/13466620?v=4" width="50" height="50" /></a>
+  <a href="https://github.com/lasher23" title="
+lasher23"><img src="https://avatars.githubusercontent.com/u/24244618?v=4" width="50" height="50" /></a>
+  <a href="https://github.com/mirsella" title="
+mirsella"><img src="https://avatars.githubusercontent.com/u/45905567?v=4" width="50" height="50" /></a>
+  <a href="https://github.com/SaintPepsi" title="
+SaintPepsi"><img src="https://avatars.githubusercontent.com/u/16056759?v=4" width="50" height="50" /></a>
+  <a href="https://github.com/l1ndch" title="
+l1ndch"><img src="https://avatars.githubusercontent.com/u/170952278?v=4" width="50" height="50" /></a>
 </p>
 
 
@@ -372,3 +426,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+
+## Credits
+
+A big thank you to [Jean Pierre Quéau](https://github.com/jepiqueau), who maintained this plugin until version 6.0.0. 

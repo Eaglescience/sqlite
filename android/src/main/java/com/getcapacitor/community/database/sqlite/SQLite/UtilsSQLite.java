@@ -9,6 +9,7 @@ import java.util.List;
 import net.sqlcipher.Cursor;
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 public class UtilsSQLite {
 
@@ -18,44 +19,32 @@ public class UtilsSQLite {
         String SELECT_CHANGE = "SELECT total_changes()";
         Boolean success = true;
         int ret = Integer.valueOf(-1);
-        try {
-            Cursor cursor = (Cursor) db.query(SELECT_CHANGE, null);
-            if (cursor != null) {
-                if (cursor.moveToFirst()) {
-                    ret = Integer.parseInt(cursor.getString(0));
-                }
+        Cursor cursor = (Cursor) db.query(SELECT_CHANGE, null);
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                ret = Integer.parseInt(cursor.getString(0));
             }
-            cursor.close();
-        } catch (Exception e) {
-            Log.d(TAG, "Error: dbChanges failed: ", e);
-        } finally {
-            return ret;
         }
+        cursor.close();
+        return ret;
     }
 
     public long dbLastId(SupportSQLiteDatabase db) {
         String SELECT_CHANGE = "SELECT last_insert_rowid()";
         Boolean success = true;
-        long ret = Long.valueOf(-1);
-        try {
-            Cursor cursor = (Cursor) db.query(SELECT_CHANGE, null);
-            if (cursor != null) {
-                if (cursor.moveToFirst()) {
-                    ret = Long.parseLong(cursor.getString(0));
-                }
-            }
-            cursor.close();
-        } catch (Exception e) {
-            Log.d(TAG, "Error: dbLastId failed: ", e);
-        } finally {
-            return ret;
+        long ret = (long) -1;
+        Cursor cursor = (Cursor) db.query(SELECT_CHANGE, null);
+        if (cursor.moveToFirst()) {
+            ret = Long.parseLong(cursor.getString(0));
         }
+        cursor.close();
+        return ret;
     }
 
     public String[] getStatementsArray(String statements) {
-        statements.replace("end;", "END;");
+        String stmts = statements.replace("end;", "END;");
         // split for each statement
-        String[] sqlCmdArray = statements.split(";\n");
+        String[] sqlCmdArray = stmts.split(";\n");
         // deal with trigger if any
         sqlCmdArray = dealWithTriggers(sqlCmdArray);
         // split for a single statement on multilines
@@ -90,7 +79,7 @@ public class UtilsSQLite {
         Object[] objectList = listArray.toArray();
         String[] retArray = Arrays.copyOf(objectList, objectList.length, String[].class);
 
-//        String[] retArray =  listArray.toArray(new String[listArray.size()]);
+        //        String[] retArray =  listArray.toArray(new String[listArray.size()]);
         return retArray;
     }
 
@@ -108,7 +97,7 @@ public class UtilsSQLite {
 
     private List<String> trimArray(List<String> listArray) {
         List<String> trimmedStrings = new ArrayList<String>();
-        for(String s : listArray) {
+        for (String s : listArray) {
             trimmedStrings.add(s.trim());
         }
         return trimmedStrings;
@@ -120,7 +109,17 @@ public class UtilsSQLite {
             if (jsArray.isNull(i)) {
                 list.add(null);
             } else {
-                list.add(jsArray.get(i));
+                Object obj = jsArray.get(i);
+                if (obj.getClass() == JSONObject.class) {
+                    if (((JSONObject) obj).getString("type").equals("Buffer")) {
+                        byte[] bArr = JSONArrayToByteArray(((JSONObject) obj).getJSONArray("data"));
+                        list.add(bArr);
+                    } else {
+                        throw new JSONException("Object not implemented");
+                    }
+                } else {
+                    list.add(obj);
+                }
             }
         }
         return list;
@@ -139,11 +138,40 @@ public class UtilsSQLite {
         return list;
     }
 
+    public byte[] JSONArrayToByteArray(JSONArray arr) throws JSONException {
+        byte[] bArr = new byte[arr.length()];
+        for (int i = 0; i < arr.length(); i++) {
+            bArr[i] = (byte) (((int) arr.get(i)) & 0xFF);
+        }
+        return bArr;
+    }
+
     public Boolean parse(Object mVar) {
         boolean ret = false;
         if (mVar instanceof JSONArray) {
             ret = true;
         }
         return ret;
+    }
+
+    public int ByteToInt(byte BVal) {
+        String comb;
+        int out = 0;
+        comb = BVal + "";
+        out = Integer.parseInt(comb);
+        // Get Unsigned Int
+        if (out < 0) {
+            out += 256;
+        }
+        return out;
+    }
+
+    public JSArray ByteArrayToJSArray(byte[] BArr) {
+        JSArray arr = new JSArray();
+
+        for (int i = 0; i < BArr.length; i++) {
+            arr.put(ByteToInt(BArr[i]));
+        }
+        return arr;
     }
 }

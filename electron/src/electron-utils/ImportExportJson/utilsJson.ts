@@ -1,9 +1,5 @@
-import type {
-  JsonColumn,
-  JsonIndex,
-  JsonTrigger,
-  JsonView,
-} from '../../../../src/definitions';
+import type { JsonColumn, JsonIndex, JsonTrigger, JsonView, Changes } from '../../../../src/definitions';
+import type { Database } from '../Database';
 import { UtilsSQLite } from '../utilsSQLite';
 
 export class UtilsJson {
@@ -11,34 +7,23 @@ export class UtilsJson {
 
   /**
    * IsTableExists
-   * @param db
+   * @param mDB
    * @param isOpen
    * @param tableName
    */
-  public async isTableExists(
-    db: any,
-    isOpen: boolean,
-    tableName: string,
-  ): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      if (!isOpen) {
-        reject('isTableExists: database not opened');
-      }
-      let query = 'SELECT name FROM sqlite_master WHERE ';
-      query += `type='table' AND name='${tableName}';`;
-      db.all(query, [], (err: Error, rows: any[]) => {
-        // process the row here
-        if (err) {
-          reject(`isTableExists: failed: ${err.message}`);
-        } else {
-          if (rows.length === 0) {
-            resolve(false);
-          } else {
-            resolve(true);
-          }
-        }
-      });
-    });
+  public isTableExists(mDB: any, isOpen: boolean, tableName: string): boolean {
+    const msg = 'IsTableExists';
+    let ret = false;
+    if (!isOpen) {
+      throw new Error(`${msg} database not opened`);
+    }
+    let query = 'SELECT name FROM sqlite_master WHERE ';
+    query += `type='table' AND name='${tableName}';`;
+    const rows: any[] = this.sqliteUtil.queryAll(mDB, query, [], true);
+    if (rows.length > 0) {
+      ret = true;
+    }
+    return ret;
   }
   /**
    * IsViewExists
@@ -46,75 +31,68 @@ export class UtilsJson {
    * @param isOpen
    * @param viewName
    */
-  public async isViewExists(
-    db: any,
-    isOpen: boolean,
-    viewName: string,
-  ): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      if (!isOpen) {
-        reject('isViewExists: database not opened');
-      }
-      let query = 'SELECT name FROM sqlite_master WHERE ';
-      query += `type='view' AND name='${viewName}';`;
-      db.all(query, [], (err: Error, rows: any[]) => {
-        // process the row here
-        if (err) {
-          reject(`isViewExists: failed: ${err.message}`);
-        } else {
-          if (rows.length === 0) {
-            resolve(false);
-          } else {
-            resolve(true);
-          }
-        }
-      });
-    });
+  public isViewExists(mDB: any, isOpen: boolean, viewName: string): boolean {
+    const msg = 'IsViewExists';
+    let ret = false;
+    if (!isOpen) {
+      throw new Error(`${msg} database not opened`);
+    }
+    let query = 'SELECT name FROM sqlite_master WHERE ';
+    query += `type='view' AND name='${viewName}';`;
+    const rows: any[] = this.sqliteUtil.queryAll(mDB, query, [], true);
+    if (rows.length > 0) {
+      ret = true;
+    }
+    return ret;
   }
   /**
    * CreateSchema
    * @param mDB
    * @param jsonData
    */
-  public async createSchema(mDB: any, jsonData: any): Promise<number> {
+  public createSchema(mDB: Database, jsonData: any): number {
     // create the database schema
+    const msg = 'CreateSchema';
     let changes = 0;
     try {
       // start a transaction
-      await this.sqliteUtil.beginTransaction(mDB, true);
+      this.sqliteUtil.beginTransaction(mDB.database, true);
+      mDB.setIsTransActive(true);
     } catch (err) {
-      return Promise.reject(`CreateDatabaseSchema: ${err}`);
+      throw new Error(`${msg} ${err}`);
     }
 
-    const stmts = await this.createSchemaStatement(jsonData);
+    const stmts = this.createSchemaStatement(jsonData);
     if (stmts.length > 0) {
       const schemaStmt: string = stmts.join('\n');
       try {
-        changes = await this.sqliteUtil.execute(mDB, schemaStmt, true);
+        const results = this.sqliteUtil.execute(mDB.database, schemaStmt, true, true);
+        changes = results.changes;
         if (changes < 0) {
           try {
-            await this.sqliteUtil.rollbackTransaction(mDB, true);
+            this.sqliteUtil.rollbackTransaction(mDB.database, true);
+            mDB.setIsTransActive(false);
           } catch (err) {
-            return Promise.reject('CreateSchema: changes < 0 ' + `${err}`);
+            throw new Error(`${msg} changes < 0 ${err}`);
           }
         }
       } catch (err) {
         const msg = err;
         try {
-          await this.sqliteUtil.rollbackTransaction(mDB, true);
-          return Promise.reject(`CreateSchema: ${msg}`);
+          this.sqliteUtil.rollbackTransaction(mDB.database, true);
+          mDB.setIsTransActive(false);
+          throw new Error(`CreateSchema: ${msg}`);
         } catch (err) {
-          return Promise.reject(
-            'CreateSchema: changes < 0 ' + `${err}: ${msg}`,
-          );
+          throw new Error(`${msg} changes < 0${err}: ${msg}`);
         }
       }
     }
     try {
-      await this.sqliteUtil.commitTransaction(mDB, true);
-      return Promise.resolve(changes);
+      this.sqliteUtil.commitTransaction(mDB.database, true);
+      mDB.setIsTransActive(false);
+      return changes;
     } catch (err) {
-      return Promise.reject('CreateSchema: commit ' + `${err}`);
+      throw new Error(`${msg} ${err}`);
     }
   }
 
@@ -122,7 +100,8 @@ export class UtilsJson {
    * CreateSchemaStatement
    * @param jsonData
    */
-  public async createSchemaStatement(jsonData: any): Promise<string[]> {
+  public createSchemaStatement(jsonData: any): string[] {
+    const msg = 'CreateSchemaStatement';
     const statements: string[] = [];
     let isLastModified = false;
     let isSqlDeleted = false;
@@ -135,9 +114,7 @@ export class UtilsJson {
           for (let j = 0; j < jTable.schema.length; j++) {
             if (j === jTable.schema.length - 1) {
               if (jTable.schema[j].column) {
-                statements.push(
-                  `${jTable.schema[j].column} ${jTable.schema[j].value}`,
-                );
+                statements.push(`${jTable.schema[j].column} ${jTable.schema[j].value}`);
                 if (jTable.schema[j].column === 'last_modified') {
                   isLastModified = true;
                 }
@@ -145,19 +122,13 @@ export class UtilsJson {
                   isSqlDeleted = true;
                 }
               } else if (jTable.schema[j].foreignkey) {
-                statements.push(
-                  `FOREIGN KEY (${jTable.schema[j].foreignkey}) ${jTable.schema[j].value}`,
-                );
+                statements.push(`FOREIGN KEY (${jTable.schema[j].foreignkey}) ${jTable.schema[j].value}`);
               } else if (jTable.schema[j].constraint) {
-                statements.push(
-                  `CONSTRAINT ${jTable.schema[j].constraint} ${jTable.schema[j].value}`,
-                );
+                statements.push(`CONSTRAINT ${jTable.schema[j].constraint} ${jTable.schema[j].value}`);
               }
             } else {
               if (jTable.schema[j].column) {
-                statements.push(
-                  `${jTable.schema[j].column} ${jTable.schema[j].value},`,
-                );
+                statements.push(`${jTable.schema[j].column} ${jTable.schema[j].value},`);
                 if (jTable.schema[j].column === 'last_modified') {
                   isLastModified = true;
                 }
@@ -165,13 +136,9 @@ export class UtilsJson {
                   isSqlDeleted = true;
                 }
               } else if (jTable.schema[j].foreignkey) {
-                statements.push(
-                  `FOREIGN KEY (${jTable.schema[j].foreignkey}) ${jTable.schema[j].value},`,
-                );
+                statements.push(`FOREIGN KEY (${jTable.schema[j].foreignkey}) ${jTable.schema[j].value},`);
               } else if (jTable.schema[j].constraint) {
-                statements.push(
-                  `CONSTRAINT ${jTable.schema[j].constraint} ${jTable.schema[j].value},`,
-                );
+                statements.push(`CONSTRAINT ${jTable.schema[j].constraint} ${jTable.schema[j].value},`);
               }
             }
           }
@@ -194,9 +161,7 @@ export class UtilsJson {
         if (jTable.indexes != null && jTable.indexes.length >= 1) {
           for (const jIndex of jTable.indexes) {
             const tableName = jTable.name;
-            let stmt = `CREATE ${
-              Object.keys(jIndex).includes('mode') ? jIndex.mode + ' ' : ''
-            } INDEX IF NOT EXISTS `;
+            let stmt = `CREATE ${Object.keys(jIndex).includes('mode') ? jIndex.mode + ' ' : ''} INDEX IF NOT EXISTS `;
             stmt += `${jIndex.name} ON ${tableName} (${jIndex.value});`;
             statements.push(stmt);
           }
@@ -205,10 +170,7 @@ export class UtilsJson {
           for (const jTrg of jTable.triggers) {
             const tableName = jTable.name;
             if (jTrg.timeevent.toUpperCase().endsWith(' ON')) {
-              jTrg.timeevent = jTrg.timeevent.substring(
-                0,
-                jTrg.timeevent.length - 3,
-              );
+              jTrg.timeevent = jTrg.timeevent.substring(0, jTrg.timeevent.length - 3);
             }
 
             let stmt = `CREATE TRIGGER IF NOT EXISTS `;
@@ -219,9 +181,9 @@ export class UtilsJson {
           }
         }
       }
-      return Promise.resolve(statements);
+      return statements;
     } catch (err) {
-      return Promise.reject(err);
+      throw new Error(`${msg} ${err}`);
     }
   }
 
@@ -231,67 +193,60 @@ export class UtilsJson {
    * @param table
    * @param mode
    */
-  public async createDataTable(
-    mDB: any,
-    table: any,
-    mode: string,
-  ): Promise<number> {
+  public createDataTable(mDB: any, table: any, mode: string): Changes {
     let lastId = -1;
+    const msg = 'CreateDataTable';
+    let results: Changes;
     try {
       // Check if the table exists
-      const tableExists = await this.isTableExists(mDB, true, table.name);
+      const tableExists = this.isTableExists(mDB, true, table.name);
       if (!tableExists) {
-        return Promise.reject(
-          'CreateDataTable: Table ' + `${table.name} does not exist`,
-        );
+        throw new Error(`${msg} ${table.name} does not exist`);
       }
 
       // Get the column names and types
-      const tableNamesTypes: any =
-        await this.sqliteUtil.getTableColumnNamesTypes(mDB, table.name);
+      const tableNamesTypes: any = this.sqliteUtil.getTableColumnNamesTypes(mDB, table.name);
       const tableColumnTypes: string[] = tableNamesTypes.types;
       const tableColumnNames: string[] = tableNamesTypes.names;
       if (tableColumnTypes.length === 0) {
-        return Promise.reject(
-          'CreateDataTable: Table ' + `${table.name} info does not exist`,
-        );
+        throw new Error(`${msg} ${table.name} info does not exist`);
       }
       // Loop on Table Values
       for (let j = 0; j < table.values.length; j++) {
         let row = table.values[j];
+        row = this.createRowData(row);
         let isRun = true;
-        const stmt: string = await this.createRowStatement(
-          mDB,
-          tableColumnNames,
-          row,
-          j,
-          table.name,
-          mode,
-        );
+        const stmt: string = this.createRowStatement(mDB, tableColumnNames, row, j, table.name, mode);
 
-        isRun = await this.checkUpdate(
-          mDB,
-          stmt,
-          row,
-          table.name,
-          tableColumnNames,
-        );
+        isRun = this.checkUpdate(mDB, stmt, row, table.name, tableColumnNames);
         if (isRun) {
           if (stmt.substring(0, 6).toUpperCase() === 'DELETE') {
             row = [];
           }
-          lastId = await this.sqliteUtil.prepareRun(mDB, stmt, row, true);
+          results = this.sqliteUtil.prepareRun(mDB, stmt, row, true, 'no');
+          lastId = results.lastId;
           if (lastId < 0) {
-            return Promise.reject('CreateDataTable: lastId < 0');
+            throw new Error(`${msg} lastId < 0`);
           }
         } else {
           lastId = 0;
         }
       }
-      return Promise.resolve(lastId);
+      return results;
     } catch (err) {
-      return Promise.reject(`CreateDataTable: ${err}`);
+      throw new Error(`${msg} ${err}`);
     }
+  }
+  public createRowData(row: any): any {
+    // Iterate over the row array
+    for (let i = 0; i < row.length; i++) {
+      // Check if the current element is an array of numbers
+      if (Array.isArray(row[i]) && row[i].every((item: any) => typeof item === 'number')) {
+        const byteArray = Uint8Array.from(row[i] as number[]);
+        row[i] = byteArray;
+      }
+    }
+    return row;
   }
   /**
    * CreateRowStatement
@@ -303,41 +258,26 @@ export class UtilsJson {
    * @param mode
    * @returns
    */
-  public async createRowStatement(
+  public createRowStatement(
     mDB: any,
     tColNames: string[],
     row: any[],
     j: number,
     tableName: string,
-    mode: string,
-  ): Promise<string> {
+    mode: string
+  ): string {
     // Check the row number of columns
-    if (
-      row.length != tColNames.length ||
-      row.length === 0 ||
-      tColNames.length === 0
-    ) {
-      return Promise.reject(
-        new Error(
-          `CreateRowStatement: Table ${tableName} ` +
-            `values row ${j} not correct length`,
-        ),
-      );
+    const msg = 'CreateRowStatement';
+    if (row.length != tColNames.length || row.length === 0 || tColNames.length === 0) {
+      throw new Error(`${msg} Table ${tableName} ` + `values row ${j} not correct length`);
     }
     try {
-      const retisIdExists: boolean = await this.isIdExists(
-        mDB,
-        tableName,
-        tColNames[0],
-        row[0],
-      );
+      const retisIdExists: boolean = this.isIdExists(mDB, tableName, tColNames[0], row[0]);
       let stmt: string;
       if (mode === 'full' || (mode === 'partial' && !retisIdExists)) {
         // Insert
         const nameString: string = tColNames.join();
-        const questionMarkString = await this.createQuestionMarkString(
-          tColNames.length,
-        );
+        const questionMarkString = this.createQuestionMarkString(tColNames.length);
         stmt = `INSERT INTO ${tableName} (${nameString}) VALUES (`;
         stmt += `${questionMarkString});`;
       } else {
@@ -359,14 +299,9 @@ export class UtilsJson {
 
         if (isUpdate) {
           // Update
-          const setString: string = await this.setNameForUpdate(tColNames);
+          const setString: string = this.setNameForUpdate(tColNames);
           if (setString.length === 0) {
-            return Promise.reject(
-              new Error(
-                `CreateRowStatement: Table ${tableName} ` +
-                  `values row ${j} not set to String`,
-              ),
-            );
+            throw new Error(`${msg} Table ${tableName} ` + `values row ${j} not set to String`);
           }
           stmt = `UPDATE ${tableName} SET ${setString} WHERE `;
           if (typeof row[0] == 'string') {
@@ -376,26 +311,21 @@ export class UtilsJson {
           }
         }
       }
-      return Promise.resolve(stmt);
+      return stmt;
     } catch (err) {
-      return Promise.reject(new Error(`CreateRowStatement: ${err.message}`));
+      throw new Error(`${msg} ${err.message}`);
     }
   }
   /**
    *
-   * @param db
+   * @param mDB
    * @param values
    * @param tbName
    * @param tColNames
    * @returns
    */
-  public async checkUpdate(
-    db: any,
-    stmt: string,
-    values: any[],
-    tbName: string,
-    tColNames: string[],
-  ): Promise<boolean> {
+  public checkUpdate(mDB: any, stmt: string, values: any[], tbName: string, tColNames: string[]): boolean {
+    const msg = 'CheckUpdate';
     const isRun = true;
     if (stmt.substring(0, 6) === 'UPDATE') {
       try {
@@ -406,31 +336,27 @@ export class UtilsJson {
           query += `${tColNames[0]} = ${values[0]};`;
         }
 
-        const resQuery: any[] = await this.getValues(db, query, tbName);
+        const resQuery: any[] = this.getValues(mDB, query, tbName);
         let resValues: any[] = [];
         if (resQuery.length > 0) {
           resValues = resQuery[0];
         }
-        if (
-          values.length > 0 &&
-          resValues.length > 0 &&
-          values.length === resValues.length
-        ) {
+        if (values.length > 0 && resValues.length > 0 && values.length === resValues.length) {
           for (let i = 0; i < values.length; i++) {
             if (values[i] !== resValues[i]) {
-              return Promise.resolve(true);
+              return true;
             }
           }
-          return Promise.resolve(false);
+          return false;
         } else {
-          const msg = 'Both arrays not the same length';
-          return Promise.reject(new Error(`CheckUpdate: ${msg}`));
+          const msg1 = 'Both arrays not the same length';
+          throw new Error(`${msg} ${msg1}`);
         }
       } catch (err) {
-        return Promise.reject(new Error(`CheckUpdate: ${err.message}`));
+        throw new Error(`${msg} ${err.message}`);
       }
     } else {
-      return Promise.resolve(isRun);
+      return isRun;
     }
   }
   /**
@@ -439,25 +365,19 @@ export class UtilsJson {
    * @param query
    * @param tableName
    */
-  public async getValues(
-    mDb: any,
-    query: string,
-    tableName: string,
-  ): Promise<any[]> {
+  public getValues(mDb: any, query: string, tableName: string): any[] {
+    const msg = 'GetValues';
     const values: any[] = [];
     try {
       // get table column names and types
-      const tableNamesTypes = await this.sqliteUtil.getTableColumnNamesTypes(
-        mDb,
-        tableName,
-      );
+      const tableNamesTypes = this.sqliteUtil.getTableColumnNamesTypes(mDb, tableName);
       let rowNames: string[] = [];
       if (Object.keys(tableNamesTypes).includes('names')) {
         rowNames = tableNamesTypes.names;
       } else {
-        return Promise.reject(`GetValues: Table ${tableName} no names`);
+        throw new Error(`${msg} Table ${tableName} no names`);
       }
-      const retValues = await this.sqliteUtil.queryAll(mDb, query, []);
+      const retValues = this.sqliteUtil.queryAll(mDb, query, [], true);
       for (const rValue of retValues) {
         const row: any[] = [];
         for (const rName of rowNames) {
@@ -469,9 +389,9 @@ export class UtilsJson {
         }
         values.push(row);
       }
-      return Promise.resolve(values);
+      return values;
     } catch (err) {
-      return Promise.reject(`GetValues: ${err}`);
+      throw new Error(`${msg} ${err}`);
     }
   }
   /**
@@ -519,30 +439,24 @@ export class UtilsJson {
 */
   /**
    * IsIdExists
-   * @param db
+   * @param mDB
    * @param dbName
    * @param firstColumnName
    * @param key
    */
-  private async isIdExists(
-    db: any,
-    dbName: string,
-    firstColumnName: string,
-    key: any,
-  ): Promise<boolean> {
+  private isIdExists(mDB: any, dbName: string, firstColumnName: string, key: any): boolean {
+    const msg = 'IsIdExists';
     let ret = false;
-    let query: string =
-      `SELECT ${firstColumnName} FROM ` +
-      `${dbName} WHERE ${firstColumnName} = `;
+    let query: string = `SELECT ${firstColumnName} FROM ` + `${dbName} WHERE ${firstColumnName} = `;
     if (typeof key === 'number') query += `${key};`;
     if (typeof key === 'string') query += `'${key}';`;
 
     try {
-      const resQuery: any[] = await this.sqliteUtil.queryAll(db, query, []);
+      const resQuery: any[] = this.sqliteUtil.queryAll(mDB, query, [], true);
       if (resQuery.length === 1) ret = true;
-      return Promise.resolve(ret);
+      return ret;
     } catch (err) {
-      return Promise.reject(`IsIdExists: ${err}`);
+      throw new Error(`${msg} ${err}`);
     }
   }
 
@@ -550,35 +464,35 @@ export class UtilsJson {
    * CreateQuestionMarkString
    * @param length
    */
-  private createQuestionMarkString(length: number): Promise<string> {
-    return new Promise((resolve, reject) => {
-      let retString = '';
-      for (let i = 0; i < length; i++) {
-        retString += '?,';
-      }
-      if (retString.length > 1) {
-        retString = retString.slice(0, -1);
-        resolve(retString);
-      } else {
-        reject('CreateQuestionMarkString: length = 0');
-      }
-    });
+  private createQuestionMarkString(length: number): string {
+    const msg = 'CreateQuestionMarkString';
+    let retString = '';
+    for (let i = 0; i < length; i++) {
+      retString += '?,';
+    }
+    if (retString.length > 1) {
+      retString = retString.slice(0, -1);
+      return retString;
+    } else {
+      throw new Error(`${msg} length = 0`);
+    }
   }
 
   /**
    * SetNameForUpdate
    * @param names
    */
-  private async setNameForUpdate(names: string[]): Promise<string> {
+  private setNameForUpdate(names: string[]): string {
+    const msg = 'SetNameForUpdate';
     let retString = '';
     for (const name of names) {
       retString += `${name} = ? ,`;
     }
     if (retString.length > 1) {
       retString = retString.slice(0, -1);
-      return Promise.resolve(retString);
+      return retString;
     } else {
-      return Promise.reject('SetNameForUpdate: length = 0');
+      throw new Error(`${msg} length = 0`);
     }
   }
 
@@ -587,20 +501,8 @@ export class UtilsJson {
    * @param obj
    */
   public isJsonSQLite(obj: any): boolean {
-    const keyFirstLevel: string[] = [
-      'database',
-      'version',
-      'overwrite',
-      'encrypted',
-      'mode',
-      'tables',
-      'views',
-    ];
-    if (
-      obj == null ||
-      (Object.keys(obj).length === 0 && obj.constructor === Object)
-    )
-      return false;
+    const keyFirstLevel: string[] = ['database', 'version', 'overwrite', 'encrypted', 'mode', 'tables', 'views'];
+    if (obj == null || (Object.keys(obj).length === 0 && obj.constructor === Object)) return false;
     for (const key of Object.keys(obj)) {
       if (keyFirstLevel.indexOf(key) === -1) return false;
       if (key === 'database' && typeof obj[key] != 'string') return false;
@@ -631,19 +533,9 @@ export class UtilsJson {
    * @param obj
    */
   private isTable(obj: any): boolean {
-    const keyTableLevel: string[] = [
-      'name',
-      'schema',
-      'indexes',
-      'triggers',
-      'values',
-    ];
+    const keyTableLevel: string[] = ['name', 'schema', 'indexes', 'triggers', 'values'];
     let nbColumn = 0;
-    if (
-      obj == null ||
-      (Object.keys(obj).length === 0 && obj.constructor === Object)
-    )
-      return false;
+    if (obj == null || (Object.keys(obj).length === 0 && obj.constructor === Object)) return false;
     for (const key of Object.keys(obj)) {
       if (keyTableLevel.indexOf(key) === -1) return false;
       if (key === 'name' && typeof obj[key] != 'string') return false;
@@ -652,17 +544,11 @@ export class UtilsJson {
       if (key === 'triggers' && typeof obj[key] != 'object') return false;
       if (key === 'values' && typeof obj[key] != 'object') return false;
       if (key === 'schema') {
-        obj['schema'].forEach(
-          (element: {
-            column?: string;
-            value: string;
-            foreignkey?: string;
-          }) => {
-            if (element.column) {
-              nbColumn++;
-            }
-          },
-        );
+        obj['schema'].forEach((element: { column?: string; value: string; foreignkey?: string }) => {
+          if (element.column) {
+            nbColumn++;
+          }
+        });
         for (let i = 0; i < nbColumn; i++) {
           const retSchema: boolean = this.isSchema(obj[key][i]);
           if (!retSchema) return false;
@@ -683,8 +569,7 @@ export class UtilsJson {
       if (key === 'values') {
         if (nbColumn > 0) {
           for (const oKey of obj[key]) {
-            if (typeof oKey != 'object' || oKey.length != nbColumn)
-              return false;
+            if (typeof oKey != 'object' || oKey.length != nbColumn) return false;
           }
         }
       }
@@ -697,18 +582,8 @@ export class UtilsJson {
    * @param obj
    */
   private isSchema(obj: any): boolean {
-    const keySchemaLevel: string[] = [
-      'column',
-      'value',
-      'foreignkey',
-      'primarykey',
-      'constraint',
-    ];
-    if (
-      obj == null ||
-      (Object.keys(obj).length === 0 && obj.constructor === Object)
-    )
-      return false;
+    const keySchemaLevel: string[] = ['column', 'value', 'foreignkey', 'primarykey', 'constraint'];
+    if (obj == null || (Object.keys(obj).length === 0 && obj.constructor === Object)) return false;
     for (const key of Object.keys(obj)) {
       if (keySchemaLevel.indexOf(key) === -1) return false;
       if (key === 'column' && typeof obj[key] != 'string') return false;
@@ -725,20 +600,12 @@ export class UtilsJson {
    */
   private isIndexes(obj: any): boolean {
     const keyIndexesLevel: string[] = ['name', 'value', 'mode'];
-    if (
-      obj == null ||
-      (Object.keys(obj).length === 0 && obj.constructor === Object)
-    )
-      return false;
+    if (obj == null || (Object.keys(obj).length === 0 && obj.constructor === Object)) return false;
     for (const key of Object.keys(obj)) {
       if (keyIndexesLevel.indexOf(key) === -1) return false;
       if (key === 'name' && typeof obj[key] != 'string') return false;
       if (key === 'value' && typeof obj[key] != 'string') return false;
-      if (
-        key === 'mode' &&
-        (typeof obj[key] != 'string' || obj[key].toUpperCase() != 'UNIQUE')
-      )
-        return false;
+      if (key === 'mode' && (typeof obj[key] != 'string' || obj[key].toUpperCase() != 'UNIQUE')) return false;
     }
     return true;
   }
@@ -748,17 +615,8 @@ export class UtilsJson {
    * @param obj
    */
   private isTriggers(obj: any): boolean {
-    const keyTriggersLevel: string[] = [
-      'name',
-      'timeevent',
-      'condition',
-      'logic',
-    ];
-    if (
-      obj == null ||
-      (Object.keys(obj).length === 0 && obj.constructor === Object)
-    )
-      return false;
+    const keyTriggersLevel: string[] = ['name', 'timeevent', 'condition', 'logic'];
+    if (obj == null || (Object.keys(obj).length === 0 && obj.constructor === Object)) return false;
     for (const key of Object.keys(obj)) {
       if (keyTriggersLevel.indexOf(key) === -1) return false;
       if (key === 'name' && typeof obj[key] != 'string') return false;
@@ -774,11 +632,7 @@ export class UtilsJson {
    */
   private isView(obj: any): boolean {
     const keyViewLevel: string[] = ['name', 'value'];
-    if (
-      obj == null ||
-      (Object.keys(obj).length === 0 && obj.constructor === Object)
-    )
-      return false;
+    if (obj == null || (Object.keys(obj).length === 0 && obj.constructor === Object)) return false;
     for (const key of Object.keys(obj)) {
       if (keyViewLevel.indexOf(key) === -1) return false;
       if (key === 'name' && typeof obj[key] != 'string') return false;
@@ -791,7 +645,8 @@ export class UtilsJson {
    * checkSchemaValidity
    * @param schema
    */
-  public async checkSchemaValidity(schema: JsonColumn[]): Promise<void> {
+  public checkSchemaValidity(schema: JsonColumn[]): void {
+    const msg = 'CheckSchemaValidity';
     for (let i = 0; i < schema.length; i++) {
       const sch: JsonColumn = {} as JsonColumn;
       const keys: string[] = Object.keys(schema[i]);
@@ -809,16 +664,17 @@ export class UtilsJson {
       }
       const isValid: boolean = this.isSchema(sch);
       if (!isValid) {
-        return Promise.reject(`CheckSchemaValidity: schema[${i}] not valid`);
+        throw new Error(`${msg} schema[${i}] not valid`);
       }
     }
-    return Promise.resolve();
+    return;
   }
   /**
    * checkIndexesSchemaValidity
    * @param indexes
    */
-  public async checkIndexesValidity(indexes: JsonIndex[]): Promise<void> {
+  public checkIndexesValidity(indexes: JsonIndex[]): void {
+    const msg = 'CheckIndexesValidity';
     for (let i = 0; i < indexes.length; i++) {
       const index: JsonIndex = {} as JsonIndex;
       const keys: string[] = Object.keys(indexes[i]);
@@ -834,16 +690,17 @@ export class UtilsJson {
 
       const isValid: boolean = this.isIndexes(index);
       if (!isValid) {
-        return Promise.reject(`CheckIndexesValidity: indexes[${i}] not valid`);
+        throw new Error(`${msg} indexes[${i}] not valid`);
       }
     }
-    return Promise.resolve();
+    return;
   }
   /**
    * checkTriggersValidity
    * @param triggers
    */
-  public async checkTriggersValidity(triggers: JsonTrigger[]): Promise<void> {
+  public checkTriggersValidity(triggers: JsonTrigger[]): void {
+    const msg = 'CheckTriggersValidity';
     for (let i = 0; i < triggers.length; i++) {
       const trigger: JsonTrigger = {} as JsonTrigger;
       const keys: string[] = Object.keys(triggers[i]);
@@ -862,18 +719,17 @@ export class UtilsJson {
 
       const isValid: boolean = this.isTriggers(trigger);
       if (!isValid) {
-        return Promise.reject(
-          `CheckTriggersValidity: triggers[${i}] not valid`,
-        );
+        throw new Error(`${msg} triggers[${i}] not valid`);
       }
     }
-    return Promise.resolve();
+    return;
   }
   /**
    * checkViewsValidity
    * @param views
    */
-  public async checkViewsValidity(views: JsonView[]): Promise<void> {
+  public checkViewsValidity(views: JsonView[]): void {
+    const msg = 'CheckViewsValidity';
     for (let i = 0; i < views.length; i++) {
       const view: JsonView = {} as JsonView;
       const keys: string[] = Object.keys(views[i]);
@@ -886,26 +742,27 @@ export class UtilsJson {
 
       const isValid: boolean = this.isView(view);
       if (!isValid) {
-        return Promise.reject(`CheckViewsValidity: views[${i}] not valid`);
+        throw new Error(`${msg} views[${i}] not valid`);
       }
     }
-    return Promise.resolve();
+    return;
   }
   /**
    * CreateView
    * @param mDB
    * @param table
    */
-  public async createView(mDB: any, view: JsonView): Promise<void> {
+  public createView(mDB: any, view: JsonView): Changes {
+    const msg = 'CreateView';
     const stmt = `CREATE VIEW IF NOT EXISTS ${view.name} AS ${view.value};`;
     try {
-      const changes = await this.sqliteUtil.execute(mDB, stmt, true);
-      if (changes < 0) {
-        return Promise.reject(`CreateView: ${view.name} failed`);
+      const results = this.sqliteUtil.execute(mDB, stmt, true, true);
+      if (results.changes < 0) {
+        throw new Error(`${msg} ${view.name} failed`);
       }
-      return Promise.resolve();
+      return results;
     } catch (err) {
-      return Promise.reject(`CreateView: ${err}`);
+      throw new Error(`${msg} ${err}`);
     }
   }
 }

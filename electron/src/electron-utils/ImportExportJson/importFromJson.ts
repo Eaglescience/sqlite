@@ -1,4 +1,5 @@
-import type { JsonSQLite } from '../../../../src/definitions';
+import type { JsonSQLite, Changes } from '../../../../src/definitions';
+import type { Database } from '../Database';
 import { UtilsDrop } from '../utilsDrop';
 import { UtilsSQLite } from '../utilsSQLite';
 
@@ -13,55 +14,49 @@ export class ImportFromJson {
    * @param mDB
    * @param jsonData
    */
-  public async createDatabaseSchema(
-    mDB: any,
-    jsonData: JsonSQLite,
-  ): Promise<number> {
+  public createDatabaseSchema(mDB: Database, jsonData: JsonSQLite): number {
     let changes = -1;
     const version: number = jsonData.version;
     try {
       // set User Version PRAGMA
-      await this.sqliteUtil.setVersion(mDB, version);
+      this.sqliteUtil.setVersion(mDB.database, version);
       // DROP ALL when mode="full"
       if (jsonData.mode === 'full') {
-        await this.dropUtil.dropAll(mDB);
+        this.dropUtil.dropAll(mDB.database);
       }
       // create database schema
-      changes = await this.jsonUtil.createSchema(mDB, jsonData);
-      return Promise.resolve(changes);
+      changes = this.jsonUtil.createSchema(mDB, jsonData);
+      return changes;
     } catch (err) {
-      return Promise.reject('CreateDatabaseSchema: ' + `${err}`);
+      throw new Error('CreateDatabaseSchema: ' + `${err}`);
     }
   }
-  public async createTablesData(
-    mDB: any,
-    jsonData: JsonSQLite,
-  ): Promise<number> {
-    let changes = 0;
+  public createTablesData(mDB: Database, jsonData: JsonSQLite): number {
+    const msg = 'CreateTablesData';
+    let results: Changes;
     let isValue = false;
-    let lastId = -1;
-    let msg = '';
+    let message = '';
     let initChanges = -1;
+    let changes = -1;
+
     try {
-      initChanges = await this.sqliteUtil.dbChanges(mDB);
+      initChanges = this.sqliteUtil.dbChanges(mDB.database);
+
       // start a transaction
-      await this.sqliteUtil.beginTransaction(mDB, true);
+      this.sqliteUtil.beginTransaction(mDB.database, true);
+      mDB.setIsTransActive(true);
     } catch (err) {
-      return Promise.reject(`createTablesData: ${err}`);
+      throw new Error(`${msg} ${err}`);
     }
     for (const jTable of jsonData.tables) {
       if (jTable.values != null && jTable.values.length >= 1) {
         // Create the table's data
         try {
-          lastId = await this.jsonUtil.createDataTable(
-            mDB,
-            jTable,
-            jsonData.mode,
-          );
-          if (lastId < 0) break;
+          results = this.jsonUtil.createDataTable(mDB.database, jTable, jsonData.mode);
+          if (results.lastId < 0) break;
           isValue = true;
         } catch (err) {
-          msg = err;
+          message = err;
           isValue = false;
           break;
         }
@@ -69,23 +64,26 @@ export class ImportFromJson {
     }
     if (isValue) {
       try {
-        await this.sqliteUtil.commitTransaction(mDB, true);
-        changes = (await this.sqliteUtil.dbChanges(mDB)) - initChanges;
-        return Promise.resolve(changes);
+        this.sqliteUtil.commitTransaction(mDB.database, true);
+        mDB.setIsTransActive(false);
+        changes = this.sqliteUtil.dbChanges(mDB.database) - initChanges;
+
+        return changes;
       } catch (err) {
-        return Promise.reject('createTablesData: ' + `${err}`);
+        throw new Error(`${msg} ${err}`);
       }
     } else {
-      if (msg.length > 0) {
+      if (message.length > 0) {
         try {
-          await this.sqliteUtil.rollbackTransaction(mDB, true);
-          return Promise.reject(new Error(`createTablesData: ${msg}`));
+          this.sqliteUtil.rollbackTransaction(mDB.database, true);
+          mDB.setIsTransActive(false);
+          throw new Error(`${msg} ${message}`);
         } catch (err) {
-          return Promise.reject('createTablesData: ' + `${err}: ${msg}`);
+          throw new Error(`${msg} ${err}: ${message}`);
         }
       } else {
         // case were no values given
-        return Promise.resolve(0);
+        return 0;
       }
     }
   }
@@ -94,26 +92,26 @@ export class ImportFromJson {
    * @param mDB
    * @param jsonData
    */
-  public async createViews(mDB: any, jsonData: JsonSQLite): Promise<number> {
+  public createViews(mDB: Database, jsonData: JsonSQLite): number {
+    const msg = 'CreateViews';
     let isView = false;
-    let msg = '';
-    let initChanges = -1;
-    let changes = -1;
+    let message = '';
+    let results: Changes;
     try {
-      initChanges = await this.sqliteUtil.dbChanges(mDB);
       // start a transaction
-      await this.sqliteUtil.beginTransaction(mDB, true);
+      this.sqliteUtil.beginTransaction(mDB.database, true);
+      mDB.setIsTransActive(true);
     } catch (err) {
-      return Promise.reject(`createViews: ${err}`);
+      throw new Error(`${msg} ${err}`);
     }
     for (const jView of jsonData.views) {
       if (jView.value != null) {
         // Create the view
         try {
-          await this.jsonUtil.createView(mDB, jView);
+          results = this.jsonUtil.createView(mDB.database, jView);
           isView = true;
         } catch (err) {
-          msg = err;
+          message = err;
           isView = false;
           break;
         }
@@ -121,23 +119,24 @@ export class ImportFromJson {
     }
     if (isView) {
       try {
-        await this.sqliteUtil.commitTransaction(mDB, true);
-        changes = (await this.sqliteUtil.dbChanges(mDB)) - initChanges;
-        return Promise.resolve(changes);
+        this.sqliteUtil.commitTransaction(mDB.database, true);
+        mDB.setIsTransActive(false);
+        return results.changes;
       } catch (err) {
-        return Promise.reject('createViews: ' + `${err}`);
+        throw new Error(`${msg} ${err}`);
       }
     } else {
-      if (msg.length > 0) {
+      if (message.length > 0) {
         try {
-          await this.sqliteUtil.rollbackTransaction(mDB, true);
-          return Promise.reject(new Error(`createViews: ${msg}`));
+          this.sqliteUtil.rollbackTransaction(mDB.database, true);
+          mDB.setIsTransActive(false);
+          throw new Error(`${msg} ${message}`);
         } catch (err) {
-          return Promise.reject('createViews: ' + `${err}: ${msg}`);
+          throw new Error(`${msg} ${err}: ${message}`);
         }
       } else {
         // case were no views given
-        return Promise.resolve(0);
+        return 0;
       }
     }
   }

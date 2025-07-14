@@ -15,7 +15,10 @@ export default {
   external: [
     '@capacitor/core',
     'electron',
-    '@journeyapps/sqlcipher',
+    'electron-json-storage',
+    'better-sqlite3-multiple-ciphers',
+    'crypto',
+    'crypto-js',
     'path',
     'fs',
     'os',
@@ -26,9 +29,7 @@ export default {
     nodeResolve(),
     commonjs({
       ignoreDynamicRequires: true,
-      dynamicRequireTargets: [
-        'node_modules/@capacitor-community/sqlite/electron/dist/plugin.js',
-      ],
+      dynamicRequireTargets: ['node_modules/@capacitor-community/sqlite/electron/dist/plugin.js'],
     }),
   ],
 };

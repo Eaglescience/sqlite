@@ -1,6 +1,6 @@
 {
   "name": "@ess/sqlite",
-  "version": "4.5.2",
+  "version": "4.5.4",
   "description": "Community plugin for native & electron SQLite databases",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
@@ -15,8 +15,11 @@
     "electron/",
     "EssSqlite.podspec"
   ],
-  "author": "Jean Pierre Quéau",
+  "author": "Robin Genz <mail@robingenz.dev>",
   "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/capacitor-community/sqlite.git"
@@ -40,7 +43,7 @@
     "verify:web": "npm run build",
     "verify:electron": "npm run build-electron",
     "lint": "npm run eslint && npm run prettier -- --check && npm run swiftlint -- lint",
-    "fmt": "npm run eslint -- --fix && npm run prettier -- --write && npm run swiftlint -- autocorrect --format",
+    "fmt": "npm run eslint -- --fix && npm run prettier -- --write && npm run swiftlint -- --fix --format",
     "eslint": "eslint . --ext ts",
     "prettier": "prettier \"**/*.{css,html,ts,js,java}\"",
     "swiftlint": "node-swiftlint",
@@ -53,30 +56,31 @@
     "clean": "rimraf ./dist",
     "watch": "tsc --watch",
     "test": "echo \"No test specified\"",
-    "prepublishOnly": "npm run build && npm run build-electron && npm run docgen"
+    "prepublishOnly": "npm run build && npm run build-electron && npm run docgen",
+    "release": "standard-version"
   },
   "devDependencies": {
-    "@capacitor/android": "^5.0.0",
-    "@capacitor/cli": "^5.0.0",
-    "@capacitor/core": "^5.0.0",
-    "@capacitor/docgen": "^0.0.17",
-    "@capacitor/ios": "^5.0.0",
-    "@ionic/eslint-config": "^0.3.0",
-    "@ionic/prettier-config": "^1.0.1",
-    "@ionic/swiftlint-config": "^1.1.2",
-    "@rollup/plugin-commonjs": "^20.0.0",
-    "@rollup/plugin-node-resolve": "^13.0.4",
-    "electron": "^22.0.0",
-    "eslint": "^7.11.0",
-    "prettier": "~2.3.0",
-    "prettier-plugin-java": "~1.0.2",
-    "rimraf": "^3.0.2",
-    "rollup": "^2.32.0",
-    "swiftlint": "^1.0.1",
-    "typescript": "~4.1.5"
+    "@capacitor/android": "6.0.0",
+    "@capacitor/cli": "6.0.0",
+    "@capacitor/core": "6.0.0",
+    "@capacitor/docgen": "0.0.17",
+    "@capacitor/ios": "6.0.0",
+    "@ionic/eslint-config": "0.4.0",
+    "@ionic/prettier-config": "2.0.0",
+    "@ionic/swiftlint-config": "1.1.2",
+    "@rollup/plugin-commonjs": "20.0.0",
+    "@rollup/plugin-node-resolve": "13.0.4",
+    "eslint": "8.57.0",
+    "prettier": "2.6.2",
+    "prettier-plugin-java": "1.6.1",
+    "rimraf": "3.0.2",
+    "rollup": "2.77.2",
+    "standard-version": "9.5.0",
+    "swiftlint": "1.0.1",
+    "typescript": "4.6.4"
   },
   "peerDependencies": {
-    "@capacitor/core": "^5.0.0"
+    "@capacitor/core": "^6.0.0"
   },
   "prettier": "@ionic/prettier-config",
   "swiftlint": "@ionic/swiftlint-config",
@@ -95,6 +99,6 @@
     }
   },
   "dependencies": {
-    "jeep-sqlite": "^2.3.6"
+    "jeep-sqlite": "^2.7.2"
   }
 }

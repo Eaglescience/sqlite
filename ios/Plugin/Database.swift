@@ -25,6 +25,10 @@ enum DatabaseError: Error {
     case importFromJson(message: String)
     case getTableNames(message: String)
     case deleteExportedRows(message: String)
+    case isAvailTrans(message: String)
+    case beginTransaction(message: String)
+    case commitTransaction(message: String)
+    case rollbackTransaction(message: String)
 }
 // swiftlint:disable file_length
 // swiftlint:disable type_body_length
@@ -45,6 +49,7 @@ class Database {
     var readOnly: Bool = false
     var ncDB: Bool = false
     var key: String = ""
+    var isAvailableTransaction = false
 
     // MARK: - Init
     init(databaseLocation: String, databaseName: String,
@@ -105,7 +110,9 @@ class Database {
     // swiftlint:disable function_body_length
     func open () throws {
         var password: String = self.key
-        if isEncryption && encrypted && key == "" && (mode == "secret" || mode == "encryption") {
+        if isEncryption && encrypted && key == "" && (mode == "secret"
+                                            || mode == "encryption"
+                                            || mode == "decryption") {
             password = UtilsSecret.getPassphrase(account: account)
         }
         if mode == "encryption" {
@@ -121,6 +128,28 @@ class Database {
                     }
                 } catch UtilsEncryptionError.encryptionFailed(let message) {
                     let msg: String = "Failed in encryption \(message)"
+                    throw DatabaseError.open(message: msg)
+                }
+            } else {
+                let msg: String = "No Encryption set in capacitor.config"
+                throw DatabaseError.open(message: msg)
+            }
+
+        }
+        if mode == "decryption" {
+            if isEncryption {
+                do {
+                    let ret: Bool = try UtilsEncryption
+                        .decryptDatabase(databaseLocation: databaseLocation,
+                                         filePath: path, password: password,
+                                         version: dbVersion)
+                    if !ret {
+                        let msg: String = "Failed in decryption"
+                        throw DatabaseError.open(message: msg)
+                    }
+                    password = ""
+                } catch UtilsEncryptionError.decryptionFailed(let message) {
+                    let msg: String = "Failed in decryption \(message)"
                     throw DatabaseError.open(message: msg)
                 }
             } else {
@@ -183,7 +212,7 @@ class Database {
             let msg: String = "Failed in deleteBackupDB \(message)"
             throw DatabaseError.open(message: msg)
         } catch UtilsUpgradeError.onUpgradeFailed(let message) {
-            //restore the database
+            // restore the database
             do {
                 try UtilsSQLCipher
                     .restoreDB(databaseLocation: databaseLocation,
@@ -217,6 +246,77 @@ class Database {
             }
         }
         return
+    }
+
+    // MARK: - IsAvailTrans
+
+    func isAvailTrans() throws -> Bool {
+        if isOpen {
+            return isAvailableTransaction
+        } else {
+            let msg: String = "Failed in isAvailTrans database not opened"
+            throw DatabaseError.isAvailTrans(message: msg)
+        }
+    }
+
+    // MARK: - SetIsTransActive
+
+    func setIsTransActive(newValue: Bool ) {
+        isAvailableTransaction = newValue
+    }
+
+    // MARK: - BeginTransaction
+
+    func beginTransaction() throws -> Int {
+        if isOpen {
+            do {
+                try UtilsSQLCipher.beginTransaction(mDB: self)
+                setIsTransActive(newValue: true)
+                return 0
+            } catch UtilsSQLCipherError.beginTransaction(let message) {
+                let msg: String = "Failed in beginTransaction \(message)"
+                throw DatabaseError.beginTransaction(message: msg)
+            }
+        } else {
+            let msg: String = "Failed in beginTransaction database not opened"
+            throw DatabaseError.beginTransaction(message: msg)
+        }
+    }
+
+    // MARK: - CommitTransaction
+
+    func commitTransaction() throws -> Int {
+        if isOpen {
+            do {
+                try UtilsSQLCipher.commitTransaction(mDB: self)
+                setIsTransActive(newValue: false)
+                return 0
+            } catch UtilsSQLCipherError.commitTransaction(let message) {
+                let msg: String = "Failed in commitTransaction \(message)"
+                throw DatabaseError.commitTransaction(message: msg)
+            }
+        } else {
+            let msg: String = "Failed in commitTransaction database not opened"
+            throw DatabaseError.commitTransaction(message: msg)
+        }
+    }
+
+    // MARK: - RollbackTransaction
+
+    func rollbackTransaction() throws -> Int {
+        if isOpen {
+            do {
+                try UtilsSQLCipher.rollbackTransaction(mDB: self)
+                setIsTransActive(newValue: false)
+                return 0
+            } catch UtilsSQLCipherError.rollbackTransaction(let message) {
+                let msg: String = "Failed in rollbackTransaction \(message)"
+                throw DatabaseError.rollbackTransaction(message: msg)
+            }
+        } else {
+            let msg: String = "Failed in rollbackTransaction database not opened"
+            throw DatabaseError.rollbackTransaction(message: msg)
+        }
     }
 
     // MARK: - GetVersion
@@ -295,13 +395,17 @@ class Database {
 
     // MARK: - ExecSet
 
-    func execSet(set: [[String: Any]], transaction: Bool = true) throws -> [String: Int64] {
+    // swiftlint:disable function_body_length
+    func execSet(set: [[String: Any]], transaction: Bool = true,
+                 returnMode: String = "no") throws -> [String: Any] {
         var msg: String = "Failed in execSet : "
         let initChanges = UtilsSQLCipher.dbChanges(mDB: mDb)
         var changes: Int = -1
         var lastId: Int64 = -1
-        var changesDict: [String: Int64] = ["lastId": lastId,
-                                            "changes": Int64(changes)]
+        var response: [[String: Any]] = []
+        var changesDict: [String: Any] = ["lastId": lastId,
+                                          "changes": changes,
+                                          "values": [[:]]]
 
         // Start a transaction
         if transaction {
@@ -314,12 +418,15 @@ class Database {
         }
         // Execute the query
         do {
-            lastId = try UtilsSQLCipher
-                .executeSet(mDB: self, set: set)
+            let resp = try UtilsSQLCipher
+                .executeSet(mDB: self, set: set, returnMode: returnMode)
+            lastId = resp.0
+            response = resp.1
             changes = UtilsSQLCipher
                 .dbChanges(mDB: mDb) - initChanges
-            changesDict["changes"] = Int64(changes)
+            changesDict["changes"] = changes
             changesDict["lastId"] = lastId
+            changesDict["values"] = response
 
         } catch UtilsSQLCipherError
                     .executeSet(let message) {
@@ -350,12 +457,13 @@ class Database {
 
     // MARK: - RunSQL
 
-    func runSQL(sql: String, values: [Any], transaction: Bool = true) throws -> [String: Int64] {
+    func runSQL(sql: String, values: [Any], transaction: Bool = true,
+                returnMode: String = "no") throws -> [String: Any] {
         var msg: String = "Failed in runSQL : "
         var changes: Int = -1
         var lastId: Int64 = -1
+        var response: [[String: Any]] = []
         let initChanges = UtilsSQLCipher.dbChanges(mDB: mDb)
-
         // Start a transaction
         if transaction {
             do {
@@ -368,9 +476,11 @@ class Database {
         }
         // Execute the query
         do {
-            lastId = try UtilsSQLCipher
+            let resp = try UtilsSQLCipher
                 .prepareSQL(mDB: self, sql: sql, values: values,
-                            fromJson: false)
+                            fromJson: false, returnMode: returnMode)
+            lastId = resp.0
+            response = resp.1
         } catch UtilsSQLCipherError.prepareSQL(let message) {
             if transaction {
                 do {
@@ -398,8 +508,9 @@ class Database {
             }
         }
         changes = UtilsSQLCipher.dbChanges(mDB: mDb) - initChanges
-        let result: [String: Int64] = ["changes": Int64(changes),
-                                       "lastId": lastId]
+        let result: [String: Any] = ["changes": changes,
+                                     "lastId": lastId,
+                                     "values": response]
         return result
     }
 
@@ -509,6 +620,8 @@ class Database {
 
     func setSyncDate(syncDate: String ) throws -> Bool {
         var retBool: Bool = false
+        var lastId: Int64 = -1
+        var resp: [String: Any] = [:]
         do {
             let isExists: Bool = try UtilsJson.isTableExists(
                 mDB: self, tableName: "sync_table")
@@ -522,8 +635,9 @@ class Database {
                 let syncTime: Int = Int(date.timeIntervalSince1970)
                 var stmt: String = "UPDATE sync_table SET sync_date = "
                 stmt.append("\(syncTime) WHERE id = 1;")
-                let retRun = try runSQL(sql: stmt, values: [])
-                if let lastId: Int64 = retRun["lastId"] {
+                resp = try runSQL(sql: stmt, values: [])
+                if let mLastId: Int64 = resp["lastId"] as? Int64 {
+                    lastId = mLastId
                     if lastId != -1 {
                         retBool = true
                     }
@@ -560,7 +674,8 @@ class Database {
 
     // MARK: - ExportToJson
 
-    func exportToJson(expMode: String) throws -> [String: Any] {
+    func exportToJson(expMode: String, isEncrypted: Bool)
+    throws -> [String: Any] {
         var retObj: [String: Any] = [:]
 
         do {
@@ -571,6 +686,10 @@ class Database {
             if isExists {
                 // Set the last exported date
                 try ExportToJson.setLastExportDate(mDB: self, sTime: syncTime)
+            } else {
+                if expMode == "partial" {
+                    throw DatabaseError.exportToJson(message: "No sync_table available")
+                }
             }
             // Launch the export process
             let data: [String: Any] = [
@@ -578,6 +697,15 @@ class Database {
                 "expMode": expMode, "version": dbVersion]
             retObj = try ExportToJson
                 .createExportObject(mDB: self, data: data)
+            if isEncryption && encrypted && isEncrypted {
+                retObj["overwrite"] = true
+                let base64Str = try UtilsJson.encryptDictionaryToBase64(
+                    retObj,
+                    forAccount: account)
+                retObj = [:]
+                retObj["expData"] = base64Str
+            }
+
         } catch UtilsJsonError.tableNotExists(let message) {
             throw DatabaseError.exportToJson(message: message)
         } catch ExportToJsonError.setLastExportDate(let message) {
@@ -601,7 +729,7 @@ class Database {
 
     // MARK: - ImportFromJson
 
-    func importFromJson(jsonSQLite: JsonSQLite)
+    func importFromJson(importData: ImportData)
     throws -> [String: Int] {
         var changes: Int = 0
 
@@ -611,18 +739,21 @@ class Database {
             try UtilsSQLCipher
                 .setForeignKeyConstraintsEnabled(mDB: self,
                                                  toggle: false)
-            if jsonSQLite.tables.count > 0 {
+            if importData.tables.count > 0 {
                 changes = try ImportFromJson
                     .createDatabaseSchema(mDB: self,
-                                          jsonSQLite: jsonSQLite)
+                                          tables: importData.tables,
+                                          mode: importData.mode,
+                                          version: importData.version)
                 if changes != -1 {
                     // Create the Database Data
                     changes += try ImportFromJson
                         .createDatabaseData(mDB: self,
-                                            jsonSQLite: jsonSQLite)
+                                            tables: importData.tables,
+                                            mode: importData.mode)
                 }
             }
-            if let mViews = jsonSQLite.views {
+            if let mViews = importData.views {
                 if mViews.count > 0 {
                     changes += try ImportFromJson
                         .createViews(mDB: self, views: mViews)

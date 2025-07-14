@@ -6,7 +6,8 @@ import Capacitor
 // swiftlint:disable type_body_length
 public class CapacitorSQLitePlugin: CAPPlugin {
     private var implementation: CapacitorSQLite?
-    private let modeList: [String] = ["no-encryption", "encryption", "secret", "newsecret", "wrongsecret"]
+    private let modeList: [String] = ["no-encryption", "encryption", "secret",
+                                      "decryption", "newsecret", "wrongsecret"]
     private let retHandler: ReturnHandler = ReturnHandler()
     private var versionUpgrades: [String: [Int: [String: Any]]] = [:]
     var importObserver: Any?
@@ -357,7 +358,7 @@ public class CapacitorSQLitePlugin: CAPPlugin {
         if encrypted && !modeList.contains(inMode) {
             var msg: String = "CreateConnection: inMode "
             msg.append("must be in['encryption',")
-            msg.append("'secret','newsecret']")
+            msg.append("'secret','decryption']")
             retHandler.rResult(call: call, message: msg)
             return
         }
@@ -435,6 +436,134 @@ public class CapacitorSQLitePlugin: CAPPlugin {
             retHandler.rResult(
                 call: call,
                 message: "Close: \(error)")
+            return
+        }
+    }
+
+    // MARK: - BeginTransaction
+
+    @objc func beginTransaction(_ call: CAPPluginCall) {
+        guard let dbName = call.options["database"] as? String else {
+            retHandler.rChanges(
+                call: call, ret: ["changes": -1],
+                message: "BeginTransaction: Must provide a database name")
+            return
+        }
+        do {
+            if let ret = try implementation?.beginTransaction(dbName) {
+                retHandler.rChanges(call: call, ret: ret)
+                return
+            } else {
+                retHandler.rChanges(
+                    call: call, ret: ["changes": -1],
+                    message: "BeginTransaction: Does not return a valid execute")
+                return
+            }
+        } catch CapacitorSQLiteError.failed(let message) {
+            let msg = "BeginTransaction: \(message)"
+            retHandler.rChanges(
+                call: call, ret: ["changes": -1],
+                message: msg)
+            return
+        } catch let error {
+            retHandler.rChanges(
+                call: call, ret: ["changes": -1],
+                message: "BeginTransaction: \(error)")
+            return
+        }
+    }
+
+    // MARK: - CommitTransaction
+
+    @objc func commitTransaction(_ call: CAPPluginCall) {
+        guard let dbName = call.options["database"] as? String else {
+            retHandler.rChanges(
+                call: call, ret: ["changes": -1],
+                message: "CommitTransaction: Must provide a database name")
+            return
+        }
+        do {
+            if let ret = try implementation?.commitTransaction(dbName) {
+                retHandler.rChanges(call: call, ret: ret)
+                return
+            } else {
+                retHandler.rChanges(
+                    call: call, ret: ["changes": -1],
+                    message: "CommitTransaction: Does not return a valid execute")
+                return
+            }
+        } catch CapacitorSQLiteError.failed(let message) {
+            let msg = "CommitTransaction: \(message)"
+            retHandler.rChanges(
+                call: call, ret: ["changes": -1],
+                message: msg)
+            return
+        } catch let error {
+            retHandler.rChanges(
+                call: call, ret: ["changes": -1],
+                message: "CommitTransaction: \(error)")
+            return
+        }
+    }
+
+    // MARK: - RollbackTransaction
+
+    @objc func rollbackTransaction(_ call: CAPPluginCall) {
+        guard let dbName = call.options["database"] as? String else {
+            retHandler.rChanges(
+                call: call, ret: ["changes": -1],
+                message: "RollbackTransaction: Must provide a database name")
+            return
+        }
+        do {
+            if let ret = try implementation?.rollbackTransaction(dbName) {
+                retHandler.rChanges(call: call, ret: ret)
+                return
+            } else {
+                retHandler.rChanges(
+                    call: call, ret: ["changes": -1],
+                    message: "RollbackTransaction: Does not return a valid execute")
+                return
+            }
+        } catch CapacitorSQLiteError.failed(let message) {
+            let msg = "RollbackTransaction: \(message)"
+            retHandler.rChanges(
+                call: call, ret: ["changes": -1],
+                message: msg)
+            return
+        } catch let error {
+            retHandler.rChanges(
+                call: call, ret: ["changes": -1],
+                message: "RollbackTransaction: \(error)")
+            return
+        }
+    }
+
+    // MARK: - IsTransactionActive
+
+    @objc func isTransactionActive(_ call: CAPPluginCall) {
+        guard let dbName = call.options["database"] as? String else {
+            retHandler.rResult(
+                call: call,
+                message: "IsTransactionActive: Must provide a database name")
+            return
+        }
+        do {
+            let res = try implementation?.isTransactionActive(dbName)
+            var bRes: Bool = false
+            if res == 1 {
+                bRes = true
+            }
+            retHandler.rResult(call: call, ret: bRes)
+            return
+        } catch CapacitorSQLiteError.failed(let message) {
+            let msg = "IsTransactionActive: \(message)"
+            retHandler.rResult(call: call, message: msg)
+            return
+        } catch let error {
+            retHandler.rResult(
+                call: call,
+                message: "IsTransactionActive: \(error)")
             return
         }
     }
@@ -688,16 +817,10 @@ public class CapacitorSQLitePlugin: CAPPlugin {
     // MARK: - getMigratableDbList
 
     @objc func getMigratableDbList(_ call: CAPPluginCall) {
-        guard let dbFolder = call.options["folderPath"] as? String else {
-            retHandler.rValues(
-                call: call, ret: [],
-                message: "getMigratableDbList: Must provide a folder path")
-            return
-        }
-
+        let folderPath: String = call.getString("folderPath") ?? "default"
         do {
             let res = try implementation?
-                .getMigratableDbList(dbFolder) ?? []
+                .getMigratableDbList(folderPath) ?? []
             retHandler.rValues(call: call, ret: res)
             return
         } catch CapacitorSQLiteError.failed(let message) {
@@ -884,10 +1007,12 @@ public class CapacitorSQLitePlugin: CAPPlugin {
         }
         let transaction: Bool = call.getBool("transaction") ?? true
         let readOnly: Bool = call.getBool("readonly") ?? false
+        let returnMode: String = call.getString("returnMode") ?? "no"
         do {
             if let res = try implementation?.executeSet(dbName, set: set,
                                                         transaction: transaction,
-                                                        readonly: readOnly) {
+                                                        readonly: readOnly,
+                                                        returnMode: returnMode) {
                 retHandler.rChanges(call: call, ret: res)
                 return
             } else {
@@ -940,13 +1065,15 @@ public class CapacitorSQLitePlugin: CAPPlugin {
         }
         let transaction: Bool = call.getBool("transaction") ?? true
         let readOnly: Bool = call.getBool("readonly") ?? false
+        let returnMode: String = call.getString("returnMode") ?? "no"
         do {
             if let res = try
                 implementation?.run(dbName,
                                     statement: statement,
                                     values: values,
                                     transaction: transaction,
-                                    readonly: readOnly) {
+                                    readonly: readOnly,
+                                    returnMode: returnMode) {
                 retHandler.rChanges(call: call, ret: res)
                 return
             } else {
@@ -1199,11 +1326,13 @@ public class CapacitorSQLitePlugin: CAPPlugin {
             return
         }
         let readOnly: Bool = call.getBool("readonly") ?? false
+        let encrypted: Bool = call.getBool("encrypted") ?? false
 
         do {
             let res: [String: Any] = try implementation?
                 .exportToJson(dbName, expMode: expMode,
-                              readonly: readOnly) ?? [:]
+                              readonly: readOnly,
+                              encrypted: encrypted) ?? [:]
             retHandler.rJsonSQLite(call: call, ret: res)
             return
         } catch CapacitorSQLiteError.failed(let message) {
@@ -1357,14 +1486,13 @@ public class CapacitorSQLitePlugin: CAPPlugin {
                 implementation?.addUpgradeStatement(dbName,
                                                     upgrade: upgrade) {
                 if
-                    versionUpgrades[dbName] != nil {
+                    self.versionUpgrades["\(dbName)"] != nil {
                     for (versionKey, upgObj) in upgVersionDict {
-                        versionUpgrades[dbName]?[versionKey] = upgObj
+                        self.versionUpgrades["\(dbName)"]?[versionKey] = upgObj
                     }
                 } else {
-                    versionUpgrades = ["\(dbName)": upgVersionDict]
+                    self.versionUpgrades["\(dbName)"] = upgVersionDict
                 }
-
                 retHandler.rResult(call: call)
                 return
             } else {
@@ -1530,30 +1658,25 @@ public class CapacitorSQLitePlugin: CAPPlugin {
                 message: "GetFromHTTPRequest: Must provide a database url")
             return
         }
-        DispatchQueue.global(qos: .background).async {
-
+        DispatchQueue.global(qos: .background).async(execute: {
             do {
                 try self.implementation?.getFromHTTPRequest(call, url: url)
-                DispatchQueue.main.async {
-                    self.retHandler.rResult(call: call)
-                    return
-                }
             } catch CapacitorSQLiteError.failed(let message) {
 
-                DispatchQueue.main.async {
+                DispatchQueue.main.async(execute: {
                     let msg = "GetFromHTTPRequest: \(message)"
                     self.retHandler.rResult(call: call, message: msg)
                     return
-                }
+                })
             } catch let error {
-                DispatchQueue.main.async {
+                DispatchQueue.main.async(execute: {
                     let msg = "GetFromHTTPRequest: " +
                         "\(error.localizedDescription)"
                     self.retHandler.rResult(call: call, message: msg)
                     return
-                }
+                })
             }
-        }
+        })
 
     }
 

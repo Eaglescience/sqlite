@@ -5,9 +5,15 @@ import static android.database.Cursor.FIELD_TYPE_FLOAT;
 import static android.database.Cursor.FIELD_TYPE_INTEGER;
 import static android.database.Cursor.FIELD_TYPE_NULL;
 import static android.database.Cursor.FIELD_TYPE_STRING;
+import static com.getcapacitor.community.database.sqlite.SQLite.UtilsDelete.findReferencesAndUpdate;
+import static com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLStatement.extractColumnNames;
+import static com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLStatement.extractTableName;
+import static com.getcapacitor.community.database.sqlite.SQLite.UtilsSQLStatement.extractWhereClause;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.DatabaseUtils;
+import android.os.Build;
 import android.util.Log;
 import androidx.sqlite.db.SimpleSQLiteQuery;
 import androidx.sqlite.db.SupportSQLiteDatabase;
@@ -17,16 +23,18 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.ExportToJson;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.ImportFromJson;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.JsonSQLite;
+import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.UtilsEncryption;
 import com.getcapacitor.community.database.sqlite.SQLite.ImportExportJson.UtilsJson;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Dictionary;
-import java.util.Hashtable;
 import java.util.List;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.sqlcipher.Cursor;
 import net.sqlcipher.database.SQLiteDatabase;
 import net.sqlcipher.database.SQLiteException;
@@ -41,14 +49,11 @@ public class Database {
     private final String _dbName;
     private final Context _context;
     private final String _mode;
-    private String _secret;
     private final Boolean _encrypted;
     private final Boolean _isEncryption;
-    private final SharedPreferences _sharedPreferences;
     private final Boolean _readOnly;
     private final File _file;
     private final int _version;
-    private final GlobalSQLite _globVar;
     private SupportSQLiteDatabase _db = null;
     private final UtilsSQLite _uSqlite;
     private final UtilsSQLCipher _uCipher;
@@ -57,11 +62,12 @@ public class Database {
     private final UtilsUpgrade _uUpg;
     private final UtilsDrop _uDrop;
     private final UtilsSecret _uSecret;
-    private Dictionary<Integer, JSONObject> _vUpgObject = new Hashtable<>();
+    private final Dictionary<Integer, JSONObject> _vUpgObject;
     private final ImportFromJson fromJson = new ImportFromJson();
     private final ExportToJson toJson = new ExportToJson();
     private Boolean ncDB = false;
     private String _key = "";
+    private boolean isAvailableTransaction = false;
 
     public Database(
         Context context,
@@ -82,7 +88,6 @@ public class Database {
         this._isEncryption = isEncryption;
         this._version = version;
         this._vUpgObject = vUpgObject;
-        this._sharedPreferences = sharedPreferences;
         this._readOnly = readonly;
         this._key = key;
         if (dbName.contains("/") && dbName.endsWith("SQLite.db")) {
@@ -91,7 +96,6 @@ public class Database {
         } else {
             this._file = this._context.getDatabasePath(dbName);
         }
-        this._globVar = new GlobalSQLite();
         this._uSqlite = new UtilsSQLite();
         this._uCipher = new UtilsSQLCipher();
         this._uFile = new UtilsFile();
@@ -100,8 +104,11 @@ public class Database {
         this._uDrop = new UtilsDrop();
         this._uSecret = isEncryption ? new UtilsSecret(context, sharedPreferences) : null;
         InitializeSQLCipher();
-        if (!this._file.getParentFile().exists()) {
-            this._file.getParentFile().mkdirs();
+        if (!Objects.requireNonNull(this._file.getParentFile()).exists()) {
+            boolean dirCreated = this._file.getParentFile().mkdirs();
+            if (!dirCreated) {
+                System.out.println("Failed to create parent directories.");
+            }
         }
         Log.v(TAG, "&&& file path " + this._file.getAbsolutePath());
     }
@@ -137,6 +144,85 @@ public class Database {
     }
 
     /**
+     * IsAvailTrans method
+     *
+     * @return database transaction is active
+     */
+    public boolean isAvailTrans() {
+        return _db.inTransaction();
+    }
+
+    /**
+     * BeginTransaction method
+     *
+     * @return begin a database transaction
+     */
+    public Integer beginTransaction() throws Exception {
+        if (_db.isOpen()) {
+            try {
+                if (isAvailTrans()) {
+                    throw new Exception("Already in transaction");
+                }
+                _db.beginTransaction();
+                return 0;
+            } catch (Exception e) {
+                String msg = "Failed in beginTransaction" + e.getMessage();
+                Log.v(TAG, msg);
+                throw new Exception(msg);
+            }
+        } else {
+            throw new Exception("Database not opened");
+        }
+    }
+
+    /**
+     * CommitTransaction method
+     *
+     * @return commit a database transaction
+     */
+    public Integer commitTransaction() throws Exception {
+        if (_db.isOpen()) {
+            try {
+                if (!isAvailTrans()) {
+                    throw new Exception("No transaction active");
+                }
+                _db.setTransactionSuccessful();
+                return 0;
+            } catch (Exception e) {
+                String msg = "Failed in commitTransaction" + e.getMessage();
+                Log.v(TAG, msg);
+                throw new Exception(msg);
+            } finally {
+                _db.endTransaction();
+            }
+        } else {
+            throw new Exception("Database not opened");
+        }
+    }
+
+    /**
+     * Rollback Transaction method
+     *
+     * @return rollback a database transaction
+     */
+    public Integer rollbackTransaction() throws Exception {
+        if (_db.isOpen()) {
+            try {
+                if (isAvailTrans()) {
+                    _db.endTransaction();
+                }
+                return 0;
+            } catch (Exception e) {
+                String msg = "Failed in rollbackTransaction" + e.getMessage();
+                Log.v(TAG, msg);
+                throw new Exception(msg);
+            }
+        } else {
+            throw new Exception("Database not opened");
+        }
+    }
+
+    /**
      * GetUrl method
      *
      * @return database url
@@ -156,7 +242,7 @@ public class Database {
 
         String password = this._key;
 
-        if ( _uSecret != null && _encrypted && password.equals("") && (_mode.equals("secret") || _mode.equals("encryption"))) {
+        if ( _uSecret != null && _encrypted && password.equals("") && (_mode.equals("secret") || _mode.equals("encryption") || _mode.equals("decryption"))) {
             password = _uSecret.getPassphrase();
         }
 
@@ -166,6 +252,20 @@ public class Database {
                     _uCipher.encrypt(_context, _file, SQLiteDatabase.getBytes(password.toCharArray()));
                 } catch (Exception e) {
                     String msg = "Failed in encryption " + e.getMessage();
+                    Log.v(TAG, msg);
+                    throw new Exception(msg);
+                }
+            } else {
+                throw new Exception("No Encryption set in capacitor.config");
+            }
+        }
+        if (_mode.equals("decryption")) {
+            if (_isEncryption) {
+                try {
+                    _uCipher.decrypt(_context, _file, SQLiteDatabase.getBytes(password.toCharArray()));
+                    password = "";
+                } catch (Exception e) {
+                    String msg = "Failed in decryption " + e.getMessage();
                     Log.v(TAG, msg);
                     throw new Exception(msg);
                 }
@@ -316,7 +416,7 @@ public class Database {
         try {
             if (_db != null && _db.isOpen()) {
                 Integer initChanges = _uSqlite.dbChanges(_db);
-                if (transaction) _db.beginTransaction();
+                if (transaction) beginTransaction();
                 for (String cmd : statements) {
                     if (!cmd.endsWith(";")) cmd += ";";
                     String nCmd = cmd;
@@ -329,7 +429,7 @@ public class Database {
                 }
                 changes = _uSqlite.dbChanges(_db) - initChanges;
                 if (changes != -1) {
-                    if (transaction) _db.setTransactionSuccessful();
+                    if (transaction) commitTransaction();
                     retObj.put("changes", changes);
                 }
                 return retObj;
@@ -339,7 +439,7 @@ public class Database {
         } catch (Exception e) {
             throw new Exception(e.getMessage());
         } finally {
-            if (_db != null && transaction && _db.inTransaction()) _db.endTransaction();
+            if (_db != null && transaction && _db.inTransaction()) rollbackTransaction();
         }
     }
 
@@ -350,48 +450,40 @@ public class Database {
      * @param set JSArray of statements
      * @return
      */
-    public JSObject executeSet(JSArray set, Boolean... others) throws Exception {
-        Boolean transaction = others.length == 1 ? others[0] : true;
+    public JSObject executeSet(JSArray set, Boolean transaction, String returnMode) throws Exception {
         JSObject retObj = new JSObject();
-        Long lastId = Long.valueOf(-1);
-        Integer changes = Integer.valueOf(-1);
+        Long lastId = (long) -1;
+        Integer changes = -1;
+        JSObject response = new JSObject();
         try {
             if (_db != null && _db.isOpen()) {
-                Integer initChanges = _uSqlite.dbChanges(_db);
-                if (transaction) _db.beginTransaction();
+                int initChanges = _uSqlite.dbChanges(_db);
+                if (transaction) beginTransaction();
                 for (int i = 0; i < set.length(); i++) {
                     JSONObject row = set.getJSONObject(i);
+                    JSObject respSet = new JSObject();
                     String statement = row.getString("statement");
                     JSONArray valuesJson = row.getJSONArray("values");
-                    ArrayList<Object> values = new ArrayList<>();
-                    for (int j = 0; j < valuesJson.length(); j++) {
-                        values.add(valuesJson.get(j));
-                    }
-                    Boolean isArray = values.size() > 0 ? _uSqlite.parse(values.get(0)) : false;
+                    // optimize executeSet
+                    Boolean isArray = valuesJson.length() > 0 ? _uSqlite.parse(valuesJson.get(0)) : false;
                     if (isArray) {
-                        for (int j = 0; j < values.size(); j++) {
-                            JSONArray valsJson = (JSONArray) values.get(j);
-                            ArrayList<Object> vals = new ArrayList<>();
-                            for (int k = 0; k < valsJson.length(); k++) {
-                                vals.add(valsJson.get(k));
-                            }
-                            lastId = prepareSQL(statement, vals, false);
-                            if (lastId == -1) break;
-                        }
+                        respSet = multipleRowsStatement(statement, valuesJson, returnMode);
                     } else {
-                        lastId = prepareSQL(statement, values, false);
+                        respSet = oneRowStatement(statement, valuesJson, returnMode);
                     }
-                    if (lastId == -1) break;
+                    lastId = respSet.getLong("lastId");
+                    if (lastId.equals(-1L)) break;
+                    response = addToResponse(response, respSet);
                 }
-                changes = _uSqlite.dbChanges(_db) - initChanges;
-                if (changes >= 0) {
-                    if (transaction) _db.setTransactionSuccessful();
+                if (lastId.equals(-1L)) {
+                    throw new Exception("lastId equals -1");
+                } else {
+                    if (transaction) commitTransaction();
                     changes = _uSqlite.dbChanges(_db) - initChanges;
                     retObj.put("changes", changes);
                     retObj.put("lastId", lastId);
+                    retObj.put("values", response.getJSONArray("values"));
                     return retObj;
-                } else {
-                    throw new Exception("lastId equals -1");
                 }
             } else {
                 throw new Exception("Database not opened");
@@ -399,7 +491,115 @@ public class Database {
         } catch (Exception e) {
             throw new Exception(e.getMessage());
         } finally {
-            if (_db != null && transaction && _db.inTransaction()) _db.endTransaction();
+            if (_db != null && transaction && _db.inTransaction()) rollbackTransaction();
+        }
+    }
+
+    public JSObject multipleRowsStatement(String statement, JSONArray valuesJson, String returnMode) throws Exception {
+        StringBuilder sqlBuilder = new StringBuilder();
+        try {
+            for (int j = 0; j < valuesJson.length(); j++) {
+                JSONArray innerArray = valuesJson.getJSONArray(j);
+                StringBuilder innerSqlBuilder = new StringBuilder();
+                for (int k = 0; k < innerArray.length(); k++) {
+                    Object innerElement = innerArray.get(k);
+                    String elementValue = "";
+
+                    if (innerElement instanceof String) {
+                        elementValue = DatabaseUtils.sqlEscapeString((String) innerElement);
+                    } else {
+                        elementValue = String.valueOf(innerElement);
+                    }
+                    innerSqlBuilder.append(elementValue);
+
+                    if (k < innerArray.length() - 1) {
+                        innerSqlBuilder.append(",");
+                    }
+                }
+
+                sqlBuilder.append("(").append(innerSqlBuilder.toString()).append(")");
+
+                if (j < valuesJson.length() - 1) {
+                    sqlBuilder.append(",");
+                }
+            }
+            String finalSql = replacePlaceholders(statement, sqlBuilder.toString());
+
+            JSObject respSet = prepareSQL(finalSql, new ArrayList<>(), false, returnMode);
+            return respSet;
+        } catch (Exception e) {
+            throw new Exception(e.getMessage());
+        }
+    }
+
+    public String replacePlaceholders(String stmt, String sqlBuilder) {
+        // Extract question mark placeholders from the input statement
+        String extractedValues = extractQuestionMarkValues(stmt);
+
+        // Check if any placeholders were found
+        if (extractedValues == null) {
+            return stmt; // Return the original statement if no placeholders are found
+        }
+        // Regex to match the VALUES clause with varying number of placeholders
+        String regex = "(?i)VALUES\\s*\\((\\s*\\?\\s*(?:,\\s*\\?\\s*)*)\\)";
+
+        // Create a pattern and matcher
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(stmt);
+
+        // Check if the pattern matches and perform the replacement
+        if (matcher.find()) {
+            // Perform the replacement without causing an IndexOutOfBoundsException
+            String formattedStmt = matcher.replaceAll("VALUES " + Matcher.quoteReplacement(sqlBuilder));
+            return formattedStmt;
+        } else {
+            throw new IllegalArgumentException("The statement does not contain a valid VALUES clause with placeholders.");
+        }
+    }
+
+    public String extractQuestionMarkValues(String input) {
+        Pattern pattern = Pattern.compile("(?i)VALUES \\((\\?(?:,\\s*\\?\\s*)*)\\)");
+        Matcher matcher = pattern.matcher(input);
+
+        if (matcher.find()) {
+            String extractedSubstring = matcher.group(1);
+            return "(" + extractedSubstring.replaceAll("\\s*,\\s*", ",") + ")";
+        } else {
+            return null;
+        }
+    }
+
+    public JSObject oneRowStatement(String statement, JSONArray valuesJson, String returnMode) throws Exception {
+        ArrayList<Object> values = new ArrayList<>();
+        for (int j = 0; j < valuesJson.length(); j++) {
+            values.add(valuesJson.get(j));
+        }
+        try {
+            JSObject respSet = prepareSQL(statement, values, false, returnMode);
+            return respSet;
+        } catch (Exception e) {
+            throw new Exception(e.getMessage());
+        }
+    }
+
+    public JSObject addToResponse(JSObject response, JSObject respSet) throws JSONException {
+        JSObject retResp = response;
+        long lastId = respSet.getLong("lastId");
+        JSONArray respVals = respSet.getJSONArray("values");
+        if (retResp.keys().hasNext()) {
+            JSONArray retVals = respSet.getJSONArray("values");
+            respVals = response.getJSONArray("values");
+            mergeJSONArrays(respVals, retVals);
+        }
+        retResp.put("lastId", lastId);
+        retResp.put("values", respVals);
+        return retResp;
+    }
+
+    public static void mergeJSONArrays(JSONArray target, JSONArray source) throws JSONException {
+        for (int i = 0; i < source.length(); i++) {
+            Object element = source.get(i);
+            target.put(element);
         }
     }
 
@@ -420,20 +620,21 @@ public class Database {
      * @param values    Array of Strings to bind to the statement
      * @return
      */
-    public JSObject runSQL(String statement, ArrayList<Object> values, Boolean... others) throws Exception {
-        Boolean transaction = others.length == 1 ? others[0] : true;
+    public JSObject runSQL(String statement, ArrayList<Object> values, Boolean transaction, String returnMode) throws Exception {
         JSObject retObj = new JSObject();
-        long lastId = Long.valueOf(-1);
-        int changes = Integer.valueOf(-1);
+        long lastId = (long) -1;
+        int changes = -1;
         try {
             if (_db != null && _db.isOpen() && statement.length() > 0) {
-                Integer initChanges = _uSqlite.dbChanges(_db);
-                if (transaction) _db.beginTransaction();
-                lastId = prepareSQL(statement, values, false);
-                if (lastId != -1 && transaction) _db.setTransactionSuccessful();
+                int initChanges = _uSqlite.dbChanges(_db);
+                if (transaction) beginTransaction();
+                JSObject response = prepareSQL(statement, values, false, returnMode);
+                lastId = response.getLong("lastId");
+                if (lastId != -1 && transaction) commitTransaction();
                 changes = _uSqlite.dbChanges(_db) - initChanges;
                 retObj.put("changes", changes);
                 retObj.put("lastId", lastId);
+                retObj.put("values", response.getJSONArray("values"));
                 return retObj;
             } else {
                 throw new Exception("Database not opened");
@@ -441,33 +642,65 @@ public class Database {
         } catch (Exception e) {
             throw new Exception(e.getMessage());
         } finally {
-            if (_db != null && transaction && _db.inTransaction()) _db.endTransaction();
+            if (_db != null && transaction && _db.inTransaction()) rollbackTransaction();
         }
     }
 
     /**
      * PrepareSQL Method
      *
-     * @param statement
-     * @param values
-     * @return
+     * @param statement SQL statement
+     * @param values SQL Values if any
+     * @param fromJson is the statement from importFromJson
+     * @param returnMode return mode to handle RETURNING
+     * @return JSObject
+     * @throws Exception message
      */
-    public long prepareSQL(String statement, ArrayList<Object> values, Boolean fromJson) throws Exception {
-        String stmtType = statement.replaceAll("\n", "").trim().substring(0, 6).toUpperCase();
+    public JSObject prepareSQL(String statement, ArrayList<Object> values, Boolean fromJson, String returnMode) throws Exception {
+        String stmtType = statement.trim().split("\\s+")[0].toUpperCase();
         SupportSQLiteStatement stmt = null;
         String sqlStmt = statement;
+        String retMode;
+        JSArray retValues = new JSArray();
+        JSObject retObject = new JSObject();
+        String colNames = "";
+        long initLastId = (long) -1;
+        /*        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.TIRAMISU) {
+          retMode = returnMode;
+          throw new Exception(retMode +"Not implemented for above TIRAMISU");
+        } else {
+
+ */
+        retMode = returnMode;
+        if (!retMode.equals("no")) {
+            retMode = "wA" + retMode;
+        }
+        //       }
+        if (retMode.equals("no") || retMode.substring(0, Math.min(retMode.length(), 2)).equals("wA")) {
+            // get the statement and the returning column names
+            try {
+                JSObject stmtObj = getStmtAndRetColNames(sqlStmt, retMode);
+                sqlStmt = stmtObj.getString("stmt", sqlStmt);
+                colNames = stmtObj.getString("names", "");
+            } catch (JSONException e) {
+                throw new Exception(e.getMessage());
+            }
+        }
         try {
             if (!fromJson && stmtType.equals("DELETE")) {
-                sqlStmt = deleteSQL(this, statement, values);
+                sqlStmt = deleteSQL(this, sqlStmt, values);
             }
-            stmt = _db.compileStatement(sqlStmt);
+            if (sqlStmt != null) {
+                stmt = _db.compileStatement(sqlStmt);
+            } else {
+                throw new Exception("sqlStmt is null");
+            }
             if (values != null && values.size() > 0) {
+                //               retMode = "no";
                 Object[] valObj = new Object[values.size()];
                 for (int i = 0; i < values.size(); i++) {
                     if (values.get(i) == null) {
                         valObj[i] = null;
-                        //                    } else if (values.get(i).equals("NULL")) {
-                        //                        valObj[i] = null;
                     } else if (JSONObject.NULL == values.get(i)) {
                         valObj[i] = null;
                     } else {
@@ -476,16 +709,37 @@ public class Database {
                 }
                 SimpleSQLiteQuery.bind(stmt, valObj);
             }
+            initLastId = _uSqlite.dbLastId(_db);
             if (stmtType.equals("INSERT")) {
                 stmt.executeInsert();
             } else {
+                if (retMode.startsWith("wA") && colNames.length() > 0 && stmtType.equals("DELETE")) {
+                    retValues = getUpdDelReturnedValues(this, sqlStmt, colNames);
+                }
                 stmt.executeUpdateDelete();
             }
-            return _uSqlite.dbLastId(_db);
-        } catch (IllegalStateException e) {
-            throw new Exception(e.getMessage());
-        } catch (IllegalArgumentException e) {
-            throw new Exception(e.getMessage());
+            Long lastId = _uSqlite.dbLastId(_db);
+            if (retMode.startsWith("wA") && colNames.length() > 0) {
+                if (stmtType.equals("INSERT")) {
+                    String tableName = extractTableName(sqlStmt);
+                    if (tableName != null) {
+                        retValues = getInsertReturnedValues(this, colNames, tableName, initLastId, lastId, retMode);
+                    }
+                } else if (stmtType.equals("UPDATE")) {
+                    retValues = getUpdDelReturnedValues(this, sqlStmt, colNames);
+                }
+            }
+            /*
+          if (Build.VERSION.SDK_INT > Build.VERSION_CODES.TIRAMISU) {
+
+            if (retMode.startsWith("one") || retMode.startsWith("all")) {
+              throw new Exception("returnMode : " + retMode + "Not implemented for above TIRAMISU");
+            }
+          }
+           */
+            retObject.put("lastId", lastId);
+            retObject.put("values", retValues);
+            return retObject;
         } catch (Exception e) {
             throw new Exception(e.getMessage());
         } finally {
@@ -493,6 +747,163 @@ public class Database {
                 stmt.close();
             }
         }
+    }
+
+    private JSObject getStmtAndRetColNames(String sqlStmt, String retMode) throws JSONException {
+        JSObject retObj = new JSObject();
+        JSObject retIsReturning = isReturning(sqlStmt);
+        Boolean isReturning = retIsReturning.getBoolean("isReturning");
+        String stmt = retIsReturning.getString("stmt");
+        String suffix = retIsReturning.getString("names");
+        retObj.put("stmt", stmt);
+        retObj.put("names", "");
+
+        if (isReturning && retMode.startsWith("wA")) {
+            String lowercaseSuffix = suffix != null ? suffix.toLowerCase() : "";
+            int returningIndex = lowercaseSuffix.indexOf("returning");
+            if (returningIndex != -1) {
+                String substring = suffix.substring(returningIndex + "returning".length());
+                String names = substring.trim();
+                retObj.put("names", getNames(names));
+            }
+        }
+        return retObj;
+    }
+
+    private String getNames(String input) {
+        int indexSemicolon = input.indexOf(";");
+        int indexDoubleDash = input.indexOf("--");
+        int indexCommentStart = input.indexOf("/*");
+
+        // Find the minimum index among them
+        int minIndex = input.length();
+        if (indexSemicolon != -1) {
+            minIndex = Math.min(minIndex, indexSemicolon);
+        }
+        if (indexDoubleDash != -1) {
+            minIndex = Math.min(minIndex, indexDoubleDash);
+        }
+        if (indexCommentStart != -1) {
+            minIndex = Math.min(minIndex, indexCommentStart);
+        }
+        return input.substring(0, minIndex).trim();
+    }
+
+    private JSObject isReturning(String sqlStmt) {
+        JSObject retObj = new JSObject();
+
+        String stmt = sqlStmt.trim();
+        if (stmt.endsWith(";")) {
+            // Remove the suffix
+            stmt = stmt.substring(0, stmt.length() - 1).trim();
+        }
+        retObj.put("isReturning", false);
+        retObj.put("stmt", sqlStmt);
+        retObj.put("names", "");
+        String stmtType = sqlStmt.trim().split("\\s+")[0].toUpperCase();
+
+        switch (stmtType) {
+            case "INSERT":
+                int valuesIndex = stmt.toUpperCase().indexOf("VALUES");
+                if (valuesIndex != -1) {
+                    int closingParenthesisIndex = -1;
+
+                    for (int i = stmt.length() - 1; i >= valuesIndex; i--) {
+                        if (stmt.charAt(i) == ')') {
+                            closingParenthesisIndex = i;
+                            break;
+                        }
+                    }
+                    if (closingParenthesisIndex != -1) {
+                        String stmtString = stmt.substring(0, closingParenthesisIndex + 1).trim() + ";";
+                        String resultString = stmt.substring(closingParenthesisIndex + 1).trim();
+                        if (resultString.length() > 0 && !resultString.endsWith(";")) {
+                            resultString += ";";
+                        }
+                        if (resultString.toLowerCase().contains("returning")) {
+                            retObj.put("isReturning", true);
+                            retObj.put("stmt", stmtString);
+                            retObj.put("names", resultString);
+                        }
+                    }
+                }
+                return retObj;
+            case "DELETE":
+            case "UPDATE":
+                String[] words = stmt.split("\\s+");
+                List<String> wordsBeforeReturning = new ArrayList<>();
+                List<String> returningString = new ArrayList<>();
+
+                boolean isReturningOutsideMessage = false;
+                for (String word : words) {
+                    if (word.toLowerCase().equals("returning")) {
+                        isReturningOutsideMessage = true;
+                        // Include "RETURNING" and the words after it in returningString
+                        returningString.add(word);
+                        returningString.addAll(wordsAfter(word, words));
+                        break;
+                    }
+                    wordsBeforeReturning.add(word);
+                }
+
+                if (isReturningOutsideMessage) {
+                    String joinedWords = String.join(" ", wordsBeforeReturning) + ";";
+                    String joinedReturningString = String.join(" ", returningString);
+                    if (joinedReturningString.length() > 0 && !joinedReturningString.endsWith(";")) {
+                        joinedReturningString += ";";
+                    }
+                    retObj.put("isReturning", true);
+                    retObj.put("stmt", joinedWords);
+                    retObj.put("names", joinedReturningString);
+                    return retObj;
+                } else {
+                    return retObj;
+                }
+            default:
+                return retObj;
+        }
+    }
+
+    private List<String> wordsAfter(String word, String[] words) {
+        List<String> mWords = Arrays.asList(words);
+        int index = mWords.indexOf(word);
+        if (index == -1) {
+            return new ArrayList<>();
+        }
+        List<String> retWords = new ArrayList<>(mWords.subList(index + 1, mWords.size()));
+        return retWords;
+    }
+
+    private JSArray getInsertReturnedValues(Database mDB, String colNames, String tableName, Long iLastId, Long lastId, String rMode)
+        throws Exception {
+        JSArray retVals = new JSArray();
+        if (iLastId < 0 || colNames.length() == 0) return retVals;
+        Long sLastId = iLastId + 1;
+        StringBuilder sbQuery = new StringBuilder("SELECT ").append(colNames).append(" FROM ");
+
+        sbQuery.append(tableName).append(" WHERE ").append("rowid ");
+        if (rMode.equals("wAone")) {
+            sbQuery.append("= ").append(sLastId);
+        }
+        if (rMode.equals("wAall")) {
+            sbQuery.append("BETWEEN ").append(sLastId).append(" AND ").append(lastId);
+        }
+        sbQuery.append(";");
+        retVals = mDB.selectSQL(sbQuery.toString(), new ArrayList<>());
+
+        return retVals;
+    }
+
+    private JSArray getUpdDelReturnedValues(Database mDB, String stmt, String colNames) throws Exception {
+        JSArray retVals = new JSArray();
+        String tableName = extractTableName(stmt);
+        String whereClause = extractWhereClause(stmt);
+        if (whereClause != null && tableName != null) {
+            StringBuilder sbQuery = new StringBuilder("SELECT ").append(colNames).append(" FROM ");
+            sbQuery.append(tableName).append(" WHERE ").append(whereClause).append(";");
+            retVals = mDB.selectSQL(sbQuery.toString(), new ArrayList<>());
+        }
+        return retVals;
     }
 
     /**
@@ -506,262 +917,52 @@ public class Database {
      */
     public String deleteSQL(Database mDB, String statement, ArrayList<Object> values) throws Exception {
         String sqlStmt = statement;
+        String msg = "DeleteSQL";
+
         try {
-            Boolean isLast = _uJson.isLastModified(mDB);
-            Boolean isDel = _uJson.isSqlDeleted(mDB);
-            if (isLast && isDel) {
-                // Replace DELETE by UPDATE and set sql_deleted to 1
-                Integer wIdx = statement.toUpperCase().indexOf("WHERE");
-                String preStmt = statement.substring(0, wIdx - 1);
-                String clauseStmt = statement.substring(wIdx);
-                String tableName = preStmt.substring(("DELETE FROM").length()).trim();
-                sqlStmt = "UPDATE " + tableName + " SET sql_deleted = 1 " + clauseStmt;
-                // Find REFERENCES if any and update the sql_deleted column
-                findReferencesAndUpdate(mDB, tableName, clauseStmt, values);
+            boolean isLast = this._uJson.isLastModified(mDB);
+            boolean isDel = this._uJson.isSqlDeleted(mDB);
+
+            if (!isLast || !isDel) {
+                return sqlStmt;
             }
+
+            // Replace DELETE by UPDATE
+            // set sql_deleted to 1
+            String whereClause = extractWhereClause(sqlStmt);
+
+            if (whereClause == null) {
+                throw new Exception("deleteSQL: cannot find a WHERE clause");
+            }
+
+            String tableName = extractTableName(sqlStmt);
+
+            if (tableName == null) {
+                throw new Exception("deleteSQL: cannot find a WHERE clause");
+            }
+            String[] colNames = extractColumnNames(whereClause).toArray(new String[0]);
+
+            if (colNames.length == 0) {
+                throw new Exception("deleteSQL: Did not find column names in the WHERE Statement");
+            }
+            String setStmt = "sql_deleted = 1";
+
+            // Find REFERENCES if any and update the sql_deleted column
+            boolean hasToUpdate = findReferencesAndUpdate(mDB, tableName, whereClause, colNames, values);
+
+            if (hasToUpdate) {
+                String whereStmt = whereClause.endsWith(";") ? whereClause.substring(0, whereClause.length() - 1) : whereClause;
+
+                sqlStmt = "UPDATE " + tableName + " SET " + setStmt + " WHERE " + whereStmt + " AND sql_deleted = 0;";
+            } else {
+                sqlStmt = "";
+            }
+
             return sqlStmt;
-        } catch (Exception e) {
-            throw new Exception(e.getMessage());
+        } catch (Exception err) {
+            String errmsg = err.getMessage() != null ? err.getMessage() : err.toString();
+            throw new Exception(msg + " " + errmsg);
         }
-    }
-
-    /**
-     * FindReferencesAndUpdate method
-     *
-     * @param mDB
-     * @param tableName
-     * @param whereStmt
-     * @param values
-     * @throws Exception
-     */
-    public void findReferencesAndUpdate(Database mDB, String tableName, String whereStmt, ArrayList<Object> values) throws Exception {
-        try {
-            ArrayList<String> references = getReferences(mDB, tableName);
-            if (references.size() == 0) {
-                return;
-            }
-            String tableNameWithRefs = references.get(references.size() - 1);
-            references.remove(references.size() - 1);
-            for (String refe : references) {
-                // get the tableName of the reference
-                String refTable = getReferenceTableName(refe);
-                if (refTable.length() <= 0) {
-                    continue;
-                }
-                // get the withRefsNames
-                String[] withRefsNames = getWithRefsColumnName(refe);
-                if (withRefsNames.length <= 0) {
-                    continue;
-                }
-                // get the columnNames
-                String[] colNames = getReferencedColumnName(refe);
-                if (colNames.length <= 0) {
-                    continue;
-                }
-                // update the where clause
-                String uWhereStmt = updateWhere(whereStmt, withRefsNames, colNames);
-
-                if (uWhereStmt.length() <= 0) {
-                    continue;
-                }
-                String updTableName = tableNameWithRefs;
-                String[] updColNames = colNames;
-                if (tableNameWithRefs.equals(tableName)) {
-                    updTableName = refTable;
-                    updColNames = withRefsNames;
-                }
-                //update sql_deleted for this reference
-                String stmt = "UPDATE " + updTableName + " SET sql_deleted = 1 " + uWhereStmt;
-                ArrayList<Object> selValues = new ArrayList<Object>();
-                if (values != null && values.size() > 0) {
-                    String[] arrVal = whereStmt.split("\\?");
-                    if (arrVal[arrVal.length - 1].equals(";")) {
-                        Arrays.copyOf(arrVal, arrVal.length - 1);
-                    }
-                    for (int j = 0; j < arrVal.length; j++) {
-                        for (String updVal : updColNames) {
-                            int idxVal = arrVal[j].indexOf(updVal);
-                            if (idxVal > -1) {
-                                selValues.add(values.get(j));
-                            }
-                        }
-                    }
-                }
-
-                long lastId = prepareSQL(stmt, selValues, false);
-                if (lastId == -1) {
-                    String msg = "UPDATE sql_deleted failed for references " + "table: " + refTable + ";";
-                    throw new Exception(msg);
-                }
-            }
-            return;
-        } catch (JSONException e) {
-            throw new Exception(e.getMessage());
-        } catch (Exception e) {
-            throw new Exception(e.getMessage());
-        }
-    }
-
-    /**
-     * GetReferenceTableName method
-     *
-     * @param refValue
-     * @return
-     */
-    public String getReferenceTableName(String refValue) {
-        String tableName = "";
-        if (refValue.length() > 0) {
-            String[] arr = refValue.split("(?i)REFERENCES", -1);
-            if (arr.length == 2) {
-                int oPar = arr[1].indexOf("(");
-
-                tableName = arr[1].substring(0, oPar).trim();
-            }
-        }
-        return tableName;
-    }
-
-    /**
-     * GetWithRefsColumnName
-     *
-     * @param refValue
-     * @return
-     */
-    public String[] getWithRefsColumnName(String refValue) {
-        String[] colNames = new String[0];
-        if (refValue.length() > 0) {
-            String[] arr = refValue.split("(?i)REFERENCES", -1);
-            if (arr.length == 2) {
-                int oPar = arr[0].indexOf("(");
-                int cPar = arr[0].indexOf(")");
-                String colStr = arr[0].substring(oPar + 1, cPar).trim();
-                colNames = colStr.split(",");
-            }
-        }
-        return colNames;
-    }
-
-    /**
-     * GetReferencedColumnName method
-     *
-     * @param refValue
-     * @return
-     */
-    public String[] getReferencedColumnName(String refValue) {
-        String[] colNames = new String[0];
-        if (refValue.length() > 0) {
-            String[] arr = refValue.split("(?i)REFERENCES", -1);
-            if (arr.length == 2) {
-                int oPar = arr[1].indexOf("(");
-                int cPar = arr[1].indexOf(")");
-                String colStr = arr[1].substring(oPar + 1, cPar).trim();
-                colNames = colStr.split(",");
-            }
-        }
-        return colNames;
-    }
-
-    /**
-     * UpdateWhere method
-     *
-     * @param whStmt
-     * @param withRefsNames
-     * @param colNames
-     * @return
-     */
-    public String updateWhere(String whStmt, String[] withRefsNames, String[] colNames) {
-        String whereStmt = "";
-        if (whStmt.length() > 0) {
-            Integer index = whStmt.toLowerCase().indexOf("WHERE".toLowerCase());
-            String stmt = whStmt.substring(index + 6);
-            if (withRefsNames.length == colNames.length) {
-                for (int i = 0; i < withRefsNames.length; i++) {
-                    String colType = "withRefsNames";
-                    int idx = stmt.indexOf(withRefsNames[i]);
-                    if (idx == -1) {
-                        idx = stmt.indexOf(colNames[i]);
-                        colType = "colNames";
-                    }
-                    if (idx > -1) {
-                        String valStr = "";
-                        int fEqual = stmt.indexOf("=", idx);
-                        if (fEqual > -1) {
-                            int iAnd = stmt.indexOf("AND", fEqual);
-                            int ilAnd = stmt.indexOf("and", fEqual);
-                            if (iAnd > -1) {
-                                valStr = (stmt.substring(fEqual + 1, iAnd - 1)).trim();
-                            } else if (ilAnd > -1) {
-                                valStr = (stmt.substring(fEqual + 1, ilAnd - 1)).trim();
-                            } else {
-                                valStr = (stmt.substring(fEqual + 1)).trim();
-                            }
-                            if (i > 0) {
-                                whereStmt += " AND ";
-                            }
-                            if (colType.equals("withRefsNames")) {
-                                whereStmt += colNames[i] + " = " + valStr;
-                            } else {
-                                whereStmt += withRefsNames[i] + " = " + valStr;
-                            }
-                        }
-                    }
-                }
-                whereStmt = "WHERE " + whereStmt;
-            }
-        }
-        return whereStmt;
-    }
-
-    /**
-     * GetReferences method
-     *
-     * @param mDB
-     * @param tableName
-     * @return
-     * @throws Exception
-     */
-    public ArrayList<String> getReferences(Database mDB, String tableName) throws Exception {
-        String sqlStmt =
-            "SELECT sql FROM sqlite_master " +
-            "WHERE sql LIKE('%FOREIGN KEY%') AND sql LIKE('%REFERENCES%') AND " +
-            "sql LIKE('%" +
-            tableName +
-            "%') AND sql LIKE('%ON DELETE%');";
-
-        try {
-            JSArray references = mDB.selectSQL(sqlStmt, new ArrayList<Object>());
-            ArrayList<String> retRefs = new ArrayList<String>();
-            if (references.length() > 0) {
-                retRefs = getRefs(references.getJSONObject(0).getString("sql"));
-            }
-            return retRefs;
-        } catch (Exception e) {
-            throw new Exception(e.getMessage());
-        }
-    }
-
-    /**
-     * GetRefs
-     *
-     * @param str
-     * @return
-     * @throws Exception
-     */
-    private ArrayList<String> getRefs(String str) throws Exception {
-        ArrayList<String> retRefs = new ArrayList<String>();
-        String[] arrFor = str.split("(?i)FOREIGN KEY", -1);
-        // Loop through Foreign Keys
-        for (int i = 1; i < arrFor.length; i++) {
-            retRefs.add((arrFor[i].split("(?i)ON DELETE", -1))[0].trim());
-        }
-        // find table name with references
-        if (str.substring(0, 12).toLowerCase().equals("CREATE TABLE".toLowerCase())) {
-            int oPar = str.indexOf("(");
-            String tableName = str.substring(13, oPar).trim();
-            retRefs.add(tableName);
-        }
-
-        return retRefs;
     }
 
     /**
@@ -797,7 +998,15 @@ public class Database {
                             row.put(colName, c.getDouble(index));
                             break;
                         case FIELD_TYPE_BLOB:
-                            row.put(colName, c.getBlob(index));
+                            byte[] blobVal = c.getBlob(index);
+                            JSArray arr = this._uSqlite.ByteArrayToJSArray(blobVal);
+                            row.put(colName, arr);
+                            /*                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                row.put(colName, Base64.getEncoder().encodeToString(c.getBlob(index)));
+                            } else {
+                                row.put(colName, JSONObject.NULL);
+                            }
+*/
                             break;
                         case FIELD_TYPE_NULL:
                             row.put(colName, JSONObject.NULL);
@@ -880,8 +1089,8 @@ public class Database {
         // check if the table has already been created
         boolean isExists = _uJson.isTableExists(this, "sync_table");
         if (!isExists) {
-            boolean isLastModified = _uJson.isLastModified(this);
-            boolean isSqlDeleted = _uJson.isSqlDeleted(this);
+            boolean isLastModified = this._uJson.isLastModified(this);
+            boolean isSqlDeleted = this._uJson.isSqlDeleted(this);
             if (isLastModified && isSqlDeleted) {
                 Date date = new Date();
                 long syncTime = date.getTime() / 1000L;
@@ -993,7 +1202,7 @@ public class Database {
      * @param mode
      * @return
      */
-    public JSObject exportToJson(String mode) throws Exception {
+    public JSObject exportToJson(String mode, Boolean isEncrypted) throws Exception {
         JsonSQLite inJson = new JsonSQLite();
         JSObject retObj = new JSObject();
         inJson.setDatabase(_dbName.substring(0, _dbName.length() - 9));
@@ -1007,6 +1216,10 @@ public class Database {
                 Date date = new Date();
                 long syncTime = date.getTime() / 1000L;
                 toJson.setLastExportDate(this, syncTime);
+            } else {
+                if (inJson.getMode().equals("partial")) {
+                    throw new Exception("No sync_table available");
+                }
             }
             // launch the export process
             JsonSQLite retJson = toJson.createExportObject(this, inJson);
@@ -1024,6 +1237,14 @@ public class Database {
                     }
                 }
             }
+            if (this._encrypted && this._isEncryption && isEncrypted) {
+                retObj.put("encrypted", true);
+                retObj.put("overwrite", true);
+                String base64Str = UtilsEncryption.encryptJSONObject(this._context, retObj);
+                retObj = new JSObject();
+                retObj.put("expData", base64Str);
+            }
+
             return retObj;
         } catch (Exception e) {
             Log.e(TAG, "Error: exportToJson " + e.getMessage());

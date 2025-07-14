@@ -1,5 +1,6 @@
 import type { capSQLiteVersionUpgrade } from '../../../src/definitions';
 
+import type { Database } from './Database';
 import { UtilsSQLite } from './utilsSQLite';
 
 export class UtilsUpgrade {
@@ -14,16 +15,13 @@ export class UtilsUpgrade {
    * @param targetVersion
    */
   public async onUpgrade(
-    mDB: any,
+    mDB: Database,
     vUpgDict: Record<number, capSQLiteVersionUpgrade>,
     curVersion: number,
-    targetVersion: number,
+    targetVersion: number
   ): Promise<number> {
     let changes;
-    const sortedKeys: Int32Array = new Int32Array(
-      Object.keys(vUpgDict).map(item => parseInt(item)),
-    ).sort();
-    console.log(`@@@ sortedKeys: ${sortedKeys}`);
+    const sortedKeys: Int32Array = new Int32Array(Object.keys(vUpgDict).map((item) => parseInt(item))).sort();
     for (const versionKey of sortedKeys) {
       if (versionKey > curVersion && versionKey <= targetVersion) {
         const statements = vUpgDict[versionKey].statements;
@@ -33,16 +31,15 @@ export class UtilsUpgrade {
 
         try {
           // set Foreign Keys Off
-          await this.sqliteUtil.setForeignKeyConstraintsEnabled(mDB, false);
-          const initChanges = await this.sqliteUtil.dbChanges(mDB);
+          this.sqliteUtil.setForeignKeyConstraintsEnabled(mDB.database, false);
+          const initChanges = this.sqliteUtil.dbChanges(mDB.database);
           await this.executeStatementsProcess(mDB, statements);
 
-          await this.sqliteUtil.setVersion(mDB, versionKey);
+          this.sqliteUtil.setVersion(mDB.database, versionKey);
           // set Foreign Keys On
-          await this.sqliteUtil.setForeignKeyConstraintsEnabled(mDB, true);
-          changes = (await this.sqliteUtil.dbChanges(mDB)) - initChanges;
+          this.sqliteUtil.setForeignKeyConstraintsEnabled(mDB.database, true);
+          changes = (await this.sqliteUtil.dbChanges(mDB.database)) - initChanges;
         } catch (err) {
-          console.log(`@@@@ onUpgrade: ${err}`);
           return Promise.reject(`onUpgrade: ${err}`);
         }
       }
@@ -55,24 +52,20 @@ export class UtilsUpgrade {
    * @param mDB
    * @param statements
    */
-  private async executeStatementsProcess(
-    mDB: any,
-    statements: string[],
-  ): Promise<void> {
+  private async executeStatementsProcess(mDB: Database, statements: string[]): Promise<void> {
     try {
-      await this.sqliteUtil.beginTransaction(mDB, true);
+      this.sqliteUtil.beginTransaction(mDB.database, true);
+      mDB.setIsTransActive(true);
       for (const statement of statements) {
-        console.log(`@@@ statement: ${statement}`);
-        await this.sqliteUtil.execute(mDB, statement, false);
+        this.sqliteUtil.execute(mDB.database, statement, false, true);
       }
 
-      await this.sqliteUtil.commitTransaction(mDB, true);
-
+      this.sqliteUtil.commitTransaction(mDB.database, true);
+      mDB.setIsTransActive(false);
       return Promise.resolve();
     } catch (err) {
-      await this.sqliteUtil.rollbackTransaction(mDB, true);
-      console.log(`@@@ ExecuteStatementProcess: ${err}`);
-
+      this.sqliteUtil.rollbackTransaction(mDB.database, true);
+      mDB.setIsTransActive(false);
       return Promise.reject(`ExecuteStatementProcess: ${err}`);
     }
   }

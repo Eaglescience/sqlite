@@ -213,9 +213,9 @@ Note that in general in SQLite this is not recommended, since it makes your quer
 * [`resetPassphrase()`](#resetpassphrase)
 * [`setEncryptionSecret(...)`](#setencryptionsecret)
 * [`changeEncryptionSecret(...)`](#changeencryptionsecret)
-* [`validateEncryptionSecret(...)`](#validateencryptionsecret)
 * [`clearEncryptionSecret()`](#clearencryptionsecret)
 * [`checkEncryptionSecret(...)`](#checkencryptionsecret)
+* [`validateEncryptionSecret(...)`](#validateencryptionsecret)
 * [`createConnection(...)`](#createconnection)
 * [`closeConnection(...)`](#closeconnection)
 * [`echo(...)`](#echo)
@@ -435,23 +435,6 @@ in secure store
 --------------------
 
 
-### validateEncryptionSecret(...)
-
-```typescript
-validateEncryptionSecret(options: capValidateSecretOptions) => Promise<capSQLiteResult>
-```
-
-Validate (match) the given secret with the stored secret.
-
-| Param         | Type                                                                          | Description            |
-| ------------- | ----------------------------------------------------------------------------- | ---------------------- |
-| **`options`** | <code><a href="#capvalidatesecretoptions">capValidateSecretOptions</a></code> | capVerifySecretOptions |
-
-**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
-
---------------------
-
-
 ### clearEncryptionSecret()
 
 ```typescript
@@ -480,6 +463,23 @@ Check encryption passphrase
 **Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 
 **Since:** 4.6.1
+
+--------------------
+
+
+### validateEncryptionSecret(...)
+
+```typescript
+validateEncryptionSecret(options: capValidateSecretOptions) => Promise<capSQLiteResult>
+```
+
+Validate (match) the given secret with the stored secret.
+
+| Param         | Type                                                                          | Description            |
+| ------------- | ----------------------------------------------------------------------------- | ---------------------- |
+| **`options`** | <code><a href="#capvalidatesecretoptions">capValidateSecretOptions</a></code> | capVerifySecretOptions |
+
+**Returns:** <code>Promise&lt;<a href="#capsqliteresult">capSQLiteResult</a>&gt;</code>
 
 --------------------
 

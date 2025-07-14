@@ -184,9 +184,6 @@ public class CapacitorSQLite {
                 setSharedPreferences();
             }
         }
-        } catch (Exception e) {
-            throw new Exception(e.getMessage());
-        }
     }
 
     private void notifyBiometricEvent(Boolean ret, String msg) {

@@ -79,10 +79,10 @@ export class CapacitorSQLite implements CapacitorSQLitePlugin {
       encrypted && options.mode === 'secret'
         ? 'secret'
         : encrypted && options.mode === 'encryption'
-        ? 'encryption'
-        : encrypted && options.mode === 'decryption'
-        ? 'decryption'
-        : 'no-encryption';
+          ? 'encryption'
+          : encrypted && options.mode === 'decryption'
+            ? 'decryption'
+            : 'no-encryption';
     if (!this.isEncryption) {
       encrypted = false;
       inMode = 'no-encryption';
@@ -105,7 +105,7 @@ export class CapacitorSQLite implements CapacitorSQLitePlugin {
       this.isEncryption,
       readonly,
       upgrades,
-      this.globalUtil
+      this.globalUtil,
     );
 
     this.databases[connName] = databaseConnection;
@@ -533,7 +533,7 @@ export class CapacitorSQLite implements CapacitorSQLitePlugin {
       this.isEncryption,
       false,
       {},
-      this.globalUtil
+      this.globalUtil,
     );
 
     try {

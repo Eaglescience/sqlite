@@ -1685,8 +1685,7 @@ public class CapacitorSQLitePlugin extends Plugin {
     }
 
     private void AddObserversToNotificationCenter() {
-        NotificationCenter
-            .defaultCenter()
+        NotificationCenter.defaultCenter()
             .addMethodForNotification(
                 "importJsonProgress",
                 new MyRunnable() {
@@ -1698,8 +1697,7 @@ public class CapacitorSQLitePlugin extends Plugin {
                     }
                 }
             );
-        NotificationCenter
-            .defaultCenter()
+        NotificationCenter.defaultCenter()
             .addMethodForNotification(
                 "exportJsonProgress",
                 new MyRunnable() {
@@ -1711,8 +1709,7 @@ public class CapacitorSQLitePlugin extends Plugin {
                     }
                 }
             );
-        NotificationCenter
-            .defaultCenter()
+        NotificationCenter.defaultCenter()
             .addMethodForNotification(
                 "biometricResults",
                 new MyRunnable() {

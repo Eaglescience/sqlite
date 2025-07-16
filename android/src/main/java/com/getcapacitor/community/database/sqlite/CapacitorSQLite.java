@@ -185,26 +185,57 @@ public class CapacitorSQLite {
     }
   }
 
-  /**
-   * IsSecretStored
-   * 
-   * @throws Exception
-   */
-  public Boolean isSecretStored() throws Exception {
-    boolean ret = false;
-    if (isEncryption) {
-      try {
-        String secret = uSecret.getPassphrase();
-        if (secret.length() > 0)
-          ret = true;
-        return ret;
-      } catch (Exception e) {
-        throw new Exception(e.getMessage());
-      }
-    } else {
-      throw new Exception("No Encryption set in capacitor.config");
+    private void notifyBiometricEvent(Boolean ret, String msg) {
+        Map<String, Object> info = new HashMap<>() {
+            {
+                put("result", ret);
+                put("message", msg);
+            }
+        };
+        Log.v(TAG, "$$$$$ in notifyBiometricEvent " + info);
+        NotificationCenter.defaultCenter().postNotification("biometricResults", info);
     }
-  }
+
+    private void setSharedPreferences() throws Exception {
+        try {
+            // get instance of the EncryptedSharedPreferences class
+            this.sharedPreferences = EncryptedSharedPreferences.create(
+                context,
+                "sqlite_encrypted_shared_prefs",
+                masterKeyAlias,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            );
+            this.uSecret = new UtilsSecret(this.context, this.sharedPreferences);
+        } catch (Exception e) {
+            throw new Exception(e.getMessage());
+        }
+    }
+
+    /**
+     * Echo
+     *
+     * @param value string to echo
+     * @return string to echo
+     */
+    public String echo(String value) {
+        return value;
+    }
+
+    public Boolean isSecretStored() throws Exception {
+        boolean ret = false;
+        if (isEncryption) {
+            try {
+                String secret = uSecret.getPassphrase();
+                if (secret.length() > 0) ret = true;
+                return ret;
+            } catch (Exception e) {
+                throw new Exception(e.getMessage());
+            }
+        } else {
+            throw new Exception("No Encryption set in capacitor.config");
+        }
+    }
 
   /**
    * checkBiometricIsAvailable

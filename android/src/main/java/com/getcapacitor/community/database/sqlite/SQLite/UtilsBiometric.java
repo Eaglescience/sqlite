@@ -91,11 +91,11 @@ public class UtilsBiometric {
                         listener.onFailed();
                     }
 
-                    @Override
-                    public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-                        super.onAuthenticationSucceeded(result);
-                        listener.onSuccess(result);
-                    }
+                @Override
+                public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                    super.onAuthenticationSucceeded(result);
+                    listener.onSuccess(result);
+                }
 
                     @Override
                     public void onAuthenticationFailed() {

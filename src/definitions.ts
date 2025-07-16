@@ -1973,7 +1973,7 @@ export interface ISQLiteDBConnection {
     values?: any[],
     transaction?: boolean,
     returnMode?: string,
-    isSQL92?: boolean
+    isSQL92?: boolean,
   ): Promise<capSQLiteChanges>;
   /**
    * Execute SQLite DB Connection Set
@@ -1988,7 +1988,7 @@ export interface ISQLiteDBConnection {
     set: capSQLiteSet[],
     transaction?: boolean,
     returnMode?: string,
-    isSQL92?: boolean
+    isSQL92?: boolean,
   ): Promise<capSQLiteChanges>;
   /**
    * Check if a SQLite DB Connection exists
@@ -2066,7 +2066,11 @@ export interface ISQLiteDBConnection {
  * SQLiteDBConnection Class
  */
 export class SQLiteDBConnection implements ISQLiteDBConnection {
-  constructor(private dbName: string, private readonly: boolean, private sqlite: any) {}
+  constructor(
+    private dbName: string,
+    private readonly: boolean,
+    private sqlite: any,
+  ) {}
 
   getConnectionDBName(): string {
     return this.dbName;
@@ -2247,7 +2251,7 @@ export class SQLiteDBConnection implements ISQLiteDBConnection {
     values?: any[],
     transaction = true,
     returnMode = 'no',
-    isSQL92 = true
+    isSQL92 = true,
   ): Promise<capSQLiteChanges> {
     let res: any;
     try {
@@ -2287,7 +2291,7 @@ export class SQLiteDBConnection implements ISQLiteDBConnection {
     set: capSQLiteSet[],
     transaction = true,
     returnMode = 'no',
-    isSQL92 = true
+    isSQL92 = true,
   ): Promise<capSQLiteChanges> {
     let res: any;
     try {

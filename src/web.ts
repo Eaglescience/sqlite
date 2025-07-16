@@ -490,7 +490,7 @@ export class CapacitorSQLiteWeb extends WebPlugin implements CapacitorSQLitePlug
   private ensureJeepSqliteIsAvailable() {
     if (this.jeepSqliteElement === null) {
       throw new Error(
-        `The jeep-sqlite element is not present in the DOM! Please check the @capacitor-community/sqlite documentation for instructions regarding the web platform.`
+        `The jeep-sqlite element is not present in the DOM! Please check the @capacitor-community/sqlite documentation for instructions regarding the web platform.`,
       );
     }
   }

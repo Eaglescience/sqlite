@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "CapacitorCommunitySqlite",
+    name: "EssSqlite",
     platforms: [.iOS(.v15)],
     products: [
         .library(
-            name: "CapacitorCommunitySqlite",
+            name: "EssSqlite",
             targets: ["CapacitorSQLitePlugin"])
     ],
     dependencies: [

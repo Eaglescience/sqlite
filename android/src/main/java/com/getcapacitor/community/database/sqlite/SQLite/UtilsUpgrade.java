@@ -1,7 +1,6 @@
 package com.getcapacitor.community.database.sqlite.SQLite;
 
 import android.util.Log;
-import com.getcapacitor.JSObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Dictionary;
@@ -70,15 +69,15 @@ public class UtilsUpgrade {
      * @throws Exception
      */
     private void executeStatementsProcess(Database db, String[] statements) throws Exception {
-        db.getDb().beginTransaction();
+        db.beginTransaction();
         try {
-            db.execute(statements);
+            db.execute(statements, false);
 
-            db.getDb().setTransactionSuccessful();
+            db.commitTransaction();
         } catch (Exception e) {
             throw new Exception("Error: executeStatementsProcess " + " failed " + e);
         } finally {
-            db.getDb().endTransaction();
+            db.rollbackTransaction();
         }
     }
 }

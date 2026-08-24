@@ -192,7 +192,7 @@ class UtilsDrop {
             .getTriggersNamesFailed(message: message)
         }
     }
-    //1234567890123456789012345678901234567890123456789012345678901234567890
+    // 1234567890123456789012345678901234567890123456789012345678901234567890
     // MARK: - dropTriggers
 
     class func dropTriggers(mDB: Database) throws -> Int {
@@ -233,7 +233,8 @@ class UtilsDrop {
             retChanges = try self.dropViews(mDB: mDB)
             if changes >= 0 {
                 _ = try UtilsSQLCipher.prepareSQL(mDB: mDB, sql: "VACUUM;",
-                                                  values: [], fromJson: false)
+                                                  values: [], fromJson: false,
+                                                  returnMode: "no")
                 changes = UtilsSQLCipher.dbChanges(mDB: mDB.mDb) -
                     initChanges
             }

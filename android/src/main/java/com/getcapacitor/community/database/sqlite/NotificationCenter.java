@@ -26,7 +26,7 @@ public class NotificationCenter {
     public synchronized void addMethodForNotification(String notificationName, MyRunnable r) {
         ArrayList<MyRunnable> list = registredObjects.get(notificationName);
         if (list == null) {
-            list = new ArrayList<MyRunnable>();
+            list = new ArrayList<>();
             registredObjects.put(notificationName, list);
         }
         list.add(r);
@@ -40,7 +40,7 @@ public class NotificationCenter {
     }
 
     public synchronized void removeAllNotifications() {
-        for (Iterator<Map.Entry<String, ArrayList<MyRunnable>>> entry = registredObjects.entrySet().iterator(); entry.hasNext();) {
+        for (Iterator<Map.Entry<String, ArrayList<MyRunnable>>> entry = registredObjects.entrySet().iterator(); entry.hasNext(); ) {
             Map.Entry<String, ArrayList<MyRunnable>> e = entry.next();
             String key = e.getKey();
             ArrayList<MyRunnable> value = e.getValue();

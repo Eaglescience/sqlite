@@ -10,53 +10,36 @@ export class UtilsEncryption {
    * @param pathDB
    * @param password
    */
-  public encryptDatabase(pathDB: string, password: string): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      const msg: string = 'EncryptDatabase: ';
-      let retB: boolean = this.fileUtil.isPathExists(pathDB);
-      if (retB) {
-        let tempPath: string = this.fileUtil.getFilePath('temp.db');
-        try {
-          await this.fileUtil.renameFilePath(pathDB, tempPath);
-          const oDB = await this.sqliteUtil.openOrCreateDatabase(tempPath, '', false);
-          const mDB = await this.sqliteUtil.openOrCreateDatabase(
-            pathDB,
-            password,
-            false
-          );
-          await this.sqlcipherEncrypt(oDB, pathDB, password);
-          oDB.close();
-          this.fileUtil.deleteFilePath(tempPath);
-          mDB.close();
-          resolve();
-        } catch (err) {
-          reject(new Error(`${msg} ${err.message} `));
-        }
-      } else {
-        reject(new Error(`${msg}file path ${pathDB} ` + 'does not exist'));
+  public async encryptDatabase(pathDB: string, password: string): Promise<void> {
+    const msg = 'EncryptDatabase: ';
+    const retB: boolean = this.fileUtil.isPathExists(pathDB);
+    if (retB) {
+      try {
+        const mDB = await this.sqliteUtil.openOrCreateDatabase(pathDB, '', false);
+        this.sqliteUtil.pragmaReKey(mDB, '', password);
+        this.sqliteUtil.closeDB(mDB);
+        return Promise.resolve();
+      } catch (err) {
+        return Promise.reject(new Error(`${msg} ${err.message} `));
       }
-    });
+    } else {
+      return Promise.reject(new Error(`${msg}file path ${pathDB} ` + 'does not exist'));
+    }
   }
-  /**
-   * SqlcipherEncrypt
-   * @param oDB
-   * @param pathDB
-   * @param password
-   */
-  private sqlcipherEncrypt(
-    oDB: any,
-    pathDB: string,
-    password: string,
-  ): Promise<void> {
-    return new Promise(async resolve => {
-      oDB.serialize(() => {
-        let stmt = `ATTACH DATABASE '${pathDB}' `;
-        stmt += `AS encrypted KEY '${password}';`;
-        oDB.run(stmt);
-        oDB.run("SELECT sqlcipher_export('encrypted');");
-        oDB.run('DETACH DATABASE encrypted;');
-      });
-      resolve();
-    });
+  public async decryptDatabase(pathDB: string, password: string): Promise<void> {
+    const msg = 'DecryptDatabase: ';
+    const retB: boolean = this.fileUtil.isPathExists(pathDB);
+    if (retB) {
+      try {
+        const mDB = await this.sqliteUtil.openOrCreateDatabase(pathDB, password, false);
+        this.sqliteUtil.pragmaReKey(mDB, password, '');
+        this.sqliteUtil.closeDB(mDB);
+        return Promise.resolve();
+      } catch (err) {
+        return Promise.reject(new Error(`${msg} ${err.message} `));
+      }
+    } else {
+      return Promise.reject(new Error(`${msg}file path ${pathDB} ` + 'does not exist'));
+    }
   }
 }

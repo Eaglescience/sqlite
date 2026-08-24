@@ -2,16 +2,11 @@ package com.getcapacitor.community.database.sqlite.SQLite;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.text.Editable;
-import android.util.Log;
-import androidx.sqlite.db.SupportSQLiteDatabase;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Arrays;
-import net.sqlcipher.database.SQLiteDatabase;
-import net.sqlcipher.database.SQLiteException;
-import net.sqlcipher.database.SQLiteStatement;
+import net.zetetic.database.sqlcipher.SQLiteDatabase;
+import net.zetetic.database.sqlcipher.SQLiteStatement;
 
 public class UtilsSQLCipher {
 
@@ -40,37 +35,43 @@ public class UtilsSQLCipher {
      * @return the detected state of the database
      */
     public State getDatabaseState(Context ctxt, File dbPath, SharedPreferences sharedPreferences, GlobalSQLite globVar) {
-        SQLiteDatabase.loadLibs(ctxt);
+        System.loadLibrary("sqlcipher");
         if (dbPath.exists()) {
             SQLiteDatabase db = null;
 
             try {
-                db = SQLiteDatabase.openDatabase(dbPath.getAbsolutePath(), "", null, SQLiteDatabase.OPEN_READONLY);
+                db = SQLiteDatabase.openDatabase(dbPath.getAbsolutePath(), "", null, SQLiteDatabase.OPEN_READONLY, null);
 
                 db.getVersion();
 
-                return (State.UNENCRYPTED);
+                return State.UNENCRYPTED;
             } catch (Exception e) {
                 try {
                     String passphrase = sharedPreferences.getString("secret", "");
                     if (passphrase.length() > 0) {
-                        db = SQLiteDatabase.openDatabase(dbPath.getAbsolutePath(), passphrase, null, SQLiteDatabase.OPEN_READONLY);
+                        db = SQLiteDatabase.openDatabase(dbPath.getAbsolutePath(), passphrase, null, SQLiteDatabase.OPEN_READONLY, null);
                         db.getVersion();
-                        return (State.ENCRYPTED_SECRET);
+                        return State.ENCRYPTED_SECRET;
                     } else {
-                        return (State.UNKNOWN);
+                        return State.UNKNOWN;
                     }
                 } catch (Exception e1) {
                     try {
                         if (globVar.secret.length() > 0) {
-                            db = SQLiteDatabase.openDatabase(dbPath.getAbsolutePath(), globVar.secret, null, SQLiteDatabase.OPEN_READONLY);
+                            db = SQLiteDatabase.openDatabase(
+                                dbPath.getAbsolutePath(),
+                                globVar.secret,
+                                null,
+                                SQLiteDatabase.OPEN_READONLY,
+                                null
+                            );
                             db.getVersion();
-                            return (State.ENCRYPTED_GLOBAL_SECRET);
+                            return State.ENCRYPTED_GLOBAL_SECRET;
                         } else {
-                            return (State.UNKNOWN);
+                            return State.UNKNOWN;
                         }
                     } catch (Exception e2) {
-                        return (State.UNKNOWN);
+                        return State.UNKNOWN;
                     }
                 }
             } finally {
@@ -80,7 +81,7 @@ public class UtilsSQLCipher {
             }
         }
 
-        return (State.DOES_NOT_EXIST);
+        return State.DOES_NOT_EXIST;
     }
 
     /**
@@ -96,11 +97,11 @@ public class UtilsSQLCipher {
      * @throws IOException
      */
     public void encrypt(Context ctxt, File originalFile, byte[] passphrase) throws IOException {
-        SQLiteDatabase.loadLibs(ctxt);
+        System.loadLibrary("sqlcipher");
 
         if (originalFile.exists()) {
             File newFile = File.createTempFile("sqlcipherutils", "tmp", ctxt.getCacheDir());
-            SQLiteDatabase db = SQLiteDatabase.openDatabase(originalFile.getAbsolutePath(), "", null, SQLiteDatabase.OPEN_READWRITE);
+            SQLiteDatabase db = SQLiteDatabase.openDatabase(originalFile.getAbsolutePath(), "", null, SQLiteDatabase.OPEN_READWRITE, null);
             int version = db.getVersion();
 
             db.close();
@@ -125,21 +126,91 @@ public class UtilsSQLCipher {
             st.close();
             db.close();
 
-            originalFile.delete();
-            newFile.renameTo(originalFile);
+            boolean delFile = originalFile.delete();
+            if (!delFile) {
+                throw new FileNotFoundException(originalFile.getAbsolutePath() + " not deleted");
+            }
+            boolean renFile = newFile.renameTo(originalFile);
+            if (!renFile) {
+                throw new FileNotFoundException(originalFile.getAbsolutePath() + " not renamed");
+            }
         } else {
             throw new FileNotFoundException(originalFile.getAbsolutePath() + " not found");
         }
     }
 
-    public void changePassword(Context ctxt, File file, String password, String nwpassword) throws IOException {
-        SQLiteDatabase.loadLibs(ctxt);
+    public void decrypt(Context ctxt, File originalFile, byte[] passphrase) throws IOException {
+        System.loadLibrary("sqlcipher");
+
+        if (originalFile.exists()) {
+            // Create a temporary file for the decrypted database in the cache directory
+            File decryptedFile = File.createTempFile("sqlcipherutils", "tmp", ctxt.getCacheDir());
+
+            // Open the decrypted database
+            SQLiteDatabase decryptedDb = SQLiteDatabase.openDatabase(
+                decryptedFile.getAbsolutePath(),
+                "",
+                null,
+                SQLiteDatabase.OPEN_READWRITE,
+                null
+            );
+
+            // Open the encrypted database with the provided passphrase
+            SQLiteDatabase encryptedDb = SQLiteDatabase.openDatabase(
+                originalFile.getAbsolutePath(),
+                new String(passphrase),
+                null,
+                SQLiteDatabase.OPEN_READWRITE,
+                null
+            );
+
+            int version = encryptedDb.getVersion();
+            decryptedDb.setVersion(version);
+
+            decryptedDb.close();
+
+            // Attach the encrypted database to itself using an empty key
+            StringBuilder attachSql = new StringBuilder();
+            attachSql.append("ATTACH DATABASE ? AS plaintext KEY '';");
+            final SQLiteStatement attachStatement = encryptedDb.compileStatement(attachSql.toString());
+
+            attachStatement.bindString(1, decryptedFile.getAbsolutePath());
+            attachStatement.execute();
+
+            // Export data from the encrypted database to the plaintext database
+            StringBuilder exportSql = new StringBuilder();
+            exportSql.append("SELECT sqlcipher_export('plaintext');");
+            encryptedDb.rawExecSQL(exportSql.toString());
+
+            // Detach the plaintext database
+            StringBuilder detachSql = new StringBuilder();
+            detachSql.append("DETACH DATABASE plaintext;");
+            encryptedDb.rawExecSQL(detachSql.toString());
+
+            attachStatement.close();
+            encryptedDb.close();
+
+            boolean delFile = originalFile.delete();
+            if (!delFile) {
+                throw new FileNotFoundException(originalFile.getAbsolutePath() + " not deleted");
+            }
+            boolean renFile = decryptedFile.renameTo(originalFile);
+            if (!renFile) {
+                throw new FileNotFoundException(originalFile.getAbsolutePath() + " not renamed");
+            }
+        } else {
+            throw new FileNotFoundException(originalFile.getAbsolutePath() + " not found");
+        }
+    }
+
+    public void changePassword(Context ctxt, File file, String password, String nwpassword) throws Exception {
+        System.loadLibrary("sqlcipher");
 
         if (file.exists()) {
-            SQLiteDatabase db = SQLiteDatabase.openDatabase(file.getAbsolutePath(), password, null, SQLiteDatabase.OPEN_READWRITE);
+            SQLiteDatabase db = SQLiteDatabase.openDatabase(file.getAbsolutePath(), password, null, SQLiteDatabase.OPEN_READWRITE, null);
 
             if (!db.isOpen()) {
-                throw new SQLiteException("database " + file.getAbsolutePath() + " open failed");
+                throw new Exception("database " + file.getAbsolutePath() + " open failed");
             }
             db.changePassword(nwpassword);
             db.close();

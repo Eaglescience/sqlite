@@ -34,6 +34,7 @@ class UtilsBinding {
         }
         return message
     }
+    // swiftlint:disable cyclomatic_complexity
     class func bind( handle: OpaquePointer?, value: Any?, idx: Int)
     throws {
         if value == nil {
@@ -64,9 +65,35 @@ class UtilsBinding {
             var bInt: Int32 = Int32(0)
             if value {bInt = Int32(1)}
             sqlite3_bind_int(handle, Int32(idx), Int32(bInt))
+        } else if let value = value as? [UInt8] {
+            let data: Data = Data(value)
+            sqlite3_bind_blob(handle, Int32(idx), data.bytes,
+                              Int32(data.bytes.count), SQLITETRANSIENT)
+        } else if let value = value {
+            if let dict = value as? [String: Int] {
+                let sortedValues = extractSortedValues(from: dict)
+                let data: Data = Data(sortedValues)
+                sqlite3_bind_blob(handle, Int32(idx), data.bytes,
+                                  Int32(data.bytes.count), SQLITETRANSIENT)
+            }
         } else {
             throw UtilsSQLCipherError.bindFailed
         }
 
+    }
+    // swiftlint:enable cyclomatic_complexity
+    class func extractSortedValues(from queryValues: [String: Int]) -> [UInt8] {
+        // Extract keys and sort them
+        let sortedKeys = queryValues.keys.sorted { $0.localizedStandardCompare($1) == .orderedAscending}
+        // Extract corresponding values and sort them based on keys
+        let sortedValues = sortedKeys.compactMap({ UInt8(queryValues[$0] ?? 0) })
+
+        return sortedValues
+    }
+    class func checkTypeDict(from value: Any) -> Bool {
+        guard value is [String: Int] else {
+            return false
+        }
+        return true
     }
 }

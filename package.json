@@ -1,6 +1,6 @@
 {
   "name": "@ess/sqlite",
-  "version": "4.5.5",
+  "version": "4.5.6",
   "description": "Community plugin for native & electron SQLite databases",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
@@ -13,7 +13,8 @@
     "src/",
     "ios/Plugin/",
     "electron/",
-    "EssSqlite.podspec"
+    "EssSqlite.podspec",
+    "Package.swift"
   ],
   "author": "Robin Genz <mail@robingenz.dev>",
   "license": "MIT",
@@ -57,31 +58,32 @@
     "watch": "tsc --watch",
     "test": "echo \"No test specified\"",
     "prepublishOnly": "npm run build && npm run build-electron && npm run docgen",
-    "release": "standard-version"
+    "release": "commit-and-tag-version",
+    "ios:spm:install": "swift package resolve"
   },
   "devDependencies": {
-    "@types/lodash": "4.14.186",
-    "@capacitor/android": "7.0.0",
-    "@capacitor/cli": "7.0.0",
-    "@capacitor/core": "7.0.0",
-    "@capacitor/docgen": "0.3.0",
-    "@capacitor/ios": "7.0.0",
-    "@ionic/eslint-config": "0.4.0",
-    "@ionic/prettier-config": "4.0.0",
-    "@ionic/swiftlint-config": "2.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/docgen": "^0.3.1",
+    "@capacitor/ios": "^8.0.0",
+    "@ionic/eslint-config": "^0.4.0",
+    "@ionic/prettier-config": "^4.0.0",
+    "@ionic/swiftlint-config": "^2.0.0",
     "@rollup/plugin-commonjs": "28.0.2",
     "@rollup/plugin-node-resolve": "16.0.0",
-    "eslint": "8.57.0",
-    "prettier": "3.4.2",
-    "prettier-plugin-java": "2.6.6",
-    "rimraf": "6.0.1",
-    "rollup": "4.30.1",
-    "standard-version": "9.5.0",
-    "swiftlint": "2.0.0",
-    "typescript": "4.1.5"
+    "@types/node": "25.0.3",
+    "commit-and-tag-version": "12.6.1",
+    "eslint": "^8.57.1",
+    "prettier": "^3.6.2",
+    "prettier-plugin-java": "^2.7.7",
+    "rimraf": "^6.1.0",
+    "rollup": "^4.53.2",
+    "swiftlint": "^2.0.0",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "@capacitor/core": ">=7.0.0"
+    "@capacitor/core": ">=8.0.0"
   },
   "prettier": "@ionic/prettier-config",
   "swiftlint": "@ionic/swiftlint-config",

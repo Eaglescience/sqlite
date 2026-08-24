@@ -1,6 +1,52 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
+
+## [8.1.1](https://github.com/capacitor-community/sqlite/compare/v8.1.0...v8.1.1) (2026-08-06)
+
+
+### Bug Fixes
+
+* **android:** update sqlcipher-android dependency to version 4.17.0 ([#695](https://github.com/capacitor-community/sqlite/issues/695)) ([59871a2](https://github.com/capacitor-community/sqlite/commit/59871a25eb6d91bd4c816b75ea3854a1e8acb136))
+* **ios:** use version range instead of deleted 8.0.0 branch for capacitor-swift-pm ([#698](https://github.com/capacitor-community/sqlite/issues/698)) ([65f3ee0](https://github.com/capacitor-community/sqlite/commit/65f3ee096b75d37b3826acc83a2c2eb8077ca7ac)), closes [#697](https://github.com/capacitor-community/sqlite/issues/697)
+
+## [8.1.0](https://github.com/capacitor-community/sqlite/compare/v8.0.1...v8.1.0) (2026-03-30)
+
+
+### Features
+
+* **ios:** add Swift Package Manager support ([#686](https://github.com/capacitor-community/sqlite/issues/686)) ([5a32e11](https://github.com/capacitor-community/sqlite/commit/5a32e11a96952173baf5cda7c1775ccfc531e41c))
+
+## [8.0.1](https://github.com/capacitor-community/sqlite/compare/v8.0.0...v8.0.1) (2026-03-07)
+
+
+### Bug Fixes
+
+* **android:** AGP 9.0 no longer supports `proguard-android.txt` ([#684](https://github.com/capacitor-community/sqlite/issues/684)) ([5305e38](https://github.com/capacitor-community/sqlite/commit/5305e384c0383c261ec83aa433ab7599d2cbe000))
+
+## [8.0.0](https://github.com/capacitor-community/sqlite/compare/v7.0.3...v8.0.0) (2026-01-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* This plugin now supports Capacitor 8.
+
+### Features
+
+* Capacitor 8 support ([#675](https://github.com/capacitor-community/sqlite/issues/675)) ([206c0ce](https://github.com/capacitor-community/sqlite/commit/206c0cef5564daded6011e2e078a0707e2d4292c))
+
+## [7.0.3](https://github.com/capacitor-community/sqlite/compare/v7.0.2...v7.0.3) (2026-01-06)
+
+### Bug Fixes
+
+* **android:** fix getSchema by splitting on all whitespace ([#677](https://github.com/capacitor-community/sqlite/issues/677)) ([8dfa0c0](https://github.com/capacitor-community/sqlite/commit/8dfa0c09f5c52ef51372cb467ab0d98010861620))
+
+### [7.0.2](https://github.com/capacitor-community/sqlite/compare/v7.0.1...v7.0.2) (2025-10-12)
+
+
+### Bug Fixes
+
+* **android:** update sqlcipher-android dependency to version 4.10.0 ([#664](https://github.com/capacitor-community/sqlite/issues/664)) ([453b1ba](https://github.com/capacitor-community/sqlite/commit/453b1ba23401e5ecc579ad341b48adac297cbe16))
 
 ### [7.0.1](https://github.com/capacitor-community/sqlite/compare/v7.0.0...v7.0.1) (2025-07-02)
 

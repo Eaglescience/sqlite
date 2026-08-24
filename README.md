@@ -10,7 +10,7 @@
 </p>
 <br>
 <p align="center">
-  <img src="https://img.shields.io/maintenance/yes/2025?style=flat-square" />
+  <img src="https://img.shields.io/maintenance/yes/2026?style=flat-square" />
   <a href="https://github.com/capacitor-community/sqlite/actions?query=workflow%3A%22CI%22"><img src="https://img.shields.io/github/actions/workflow/status/capacitor-community/sqlite/ci.yml?style=flat-square" /></a>
   <a href="https://www.npmjs.com/package/@capacitor-community/sqlite"><img src="https://img.shields.io/npm/l/@capacitor-community/sqlite?branch=master&style=flat-square" /></a>
 <br>
@@ -24,11 +24,14 @@
 
 ## Maintainers
 
-| Maintainer | GitHub                                    | Social                                        |
-| ---------- | ----------------------------------------- | --------------------------------------------- |
-| Robin Genz | [robingenz](https://github.com/robingenz) | [@robin_genz](https://twitter.com/robin_genz) |
+| Maintainer | Company                             | GitHub                                    | Social                                        |
+| ---------- | ----------------------------------- | ----------------------------------------- | --------------------------------------------- |
+| Robin Genz | [Capawesome](https://capawesome.io) | [robingenz](https://github.com/robingenz) | [@robin_genz](https://twitter.com/robin_genz) |
 
-To install:
+# Installation
+
+> [!IMPORTANT]  
+> This plugin uses the [SQLCipher](https://www.zetetic.net/sqlcipher/) library (even for unencrypted databases), which is subject to the [Encryption Export Regulations](https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations) and may require you to submit a year-end self-classification report to the U.S. government. Read more [here](https://discuss.zetetic.net/t/export-requirements-for-applications-using-sqlcipher/47).
 
 ```
 npm install --save @capacitor-community/sqlite
@@ -117,6 +120,16 @@ You'll need the usual capacitor/android/react npm script to build and copy the a
 #### For Vue & React frameworks
 
 - Copy manually the file `sql-wasm.wasm` from `node_modules/sql.js/dist/sql-wasm.wasm` to the `public/assets` folder of YOUR_APP 
+
+## Web Debugging Tools
+
+When using the Web platform, SQLite databases are backed by `jeep-sqlite` and stored in IndexedDB, which can be difficult to inspect during development.
+
+For easier debugging, there is a Chrome DevTools extension that allows browsing, querying, and exporting `jeep-sqlite` databases directly from IndexedDB:
+
+- **Jeep SQLite Browser (Chrome DevTools Extension)**
+  - Chrome Web Store: https://chromewebstore.google.com/detail/jeep-sqlite-browser/ocgeealadeabmhponndjebghfkbfbnch
+  - GitHub: https://github.com/pinguluk/jeep-sqlite-browser
 
 ## Android Quirks
 

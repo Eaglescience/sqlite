@@ -64,7 +64,8 @@ public class ImportFromJson {
         } catch (Exception e) {
             String msg = "CreateDatabaseSchema: " + e.getMessage();
             throw new Exception(msg);
-        } finally {}
+        } finally {
+        }
     }
 
     /**
@@ -742,7 +743,7 @@ public class ImportFromJson {
                         ", ",
                         rowIndex
                             .stream()
-                            .map(item -> {
+                            .map((item) -> {
                                 if (item instanceof String) {
                                     String val = (String) item;
                                     String rVal = val;

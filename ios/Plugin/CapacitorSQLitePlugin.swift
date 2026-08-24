@@ -56,7 +56,12 @@ public class CapacitorSQLitePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "beginTransaction", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "commitTransaction", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "rollbackTransaction", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "isTransactionActive", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "isTransactionActive", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "validateEncryptionSecret", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "initialize", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "resetPassphrase", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "checkBiometricAuth", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "checkBiometricIsAvailable", returnType: CAPPluginReturnPromise)
     ]
     private var implementation: CapacitorSQLite?
     private let modeList: [String] = ["no-encryption", "encryption", "secret",
